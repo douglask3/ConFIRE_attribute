@@ -7,29 +7,23 @@ sourceAllLibs("../rasterextrafuns/rasterExtras/R/")
 source("libs/process_jules_file.r")
 source("libs/writeRaster.Standard.r")
 
-dirs = list(historic = '/hpc/data/d01/hadcam/jules_output/RUNC20C_u-bk886_isimip_0p5deg_origsoil_dailytrif/',
-            RCP2.6 = '/hpc/data/d01/hadcam/jules_output/RUNFUT26_u-bk886_isimip_0p5deg_origsoil_dailytrif/',
-            RCP6.0 = '/hpc/data/d01/hadcam/jules_output/RUNFUT60_u-bk886_isimip_0p5deg_origsoil_dailytrif/')
+grab_cache = TRUE
 
-years = list(historic = 1995:2004,
-             RCP2.6 = 2089:2098,
-             RCP6.0 = 2089:2098)
-
-years = list(historic = 1995:2004,
-             RCP2.6 = 2089:2098,
-             RCP6.0 = 2089:2098)
+dirs = list(ubl006_WWLLN_FireOff = '/hpc/data/d05/cburton/jules_output/u-bl106_WWLLN_FireOff/')
 
 
-fileIDs = c(cover = "ilamb", soilM = "gen_mon_layer", precip = "ilamb", humid = "ilamb", tas = "ilamb")
+years = list(historic = 1700:2016)
 
-varnames =  c(cover = "frac", soilM = "smcl", precip = "precip", humid = "q1p5m_gb", tas = "t1p5m_gb")
 
-models = c("MIROC5", "GFDL-ESM2M", "HADGEM2-ES", "IPSL-CM5A-LR")
+fileIDs = c(cover = "ilamb", soilM = "Monthly", precip = "ilamb", humid = "ilamb", tas = "ilamb")
 
-temp_dir = '/data/users/dkelley/ConFIRE_ISIMIP_temp/-makeISIMIPins'
-temp_dir_mem = '/data/users/dkelley/ConFIRE_ISIMIP_temp/memSafe/'
-out_dir  = '/data/users/dkelley/ConFIRE_ISIMIP/inputs/'
+varnames =  c(cover = "frac", soilM = "fsmc", precip = "precip", humid = "q1p5m_gb", tas = "t1p5m_gb")
 
+models = c("")
+
+temp_dir = '/data/users/dkelley/ConFIRE_FIREMIP_temp/-makeISIMIPins'
+temp_dir_mem = '/data/users/dkelley/ConFIRE_FIREMIP_temp/memSafe/'
+out_dir  = '/data/users/dkelley/ConFIRE_FIREMIP/inputs/'
 coverTypes = list(trees = c(1:7), totalVeg = c(1:13), crop = c(10, 12), pas = c(11, 13))
 
 memSafeFile.initialise(temp_dir_mem)
@@ -40,19 +34,21 @@ makeDat <- function(id, dir, years_out) {
         print(mod)
         tfile0 = paste0(c(temp_dir, id, mod, range(years)), collapse = '-')
         dir = paste0(dir, '/', mod, '/')
+        
         files = list.files(dir, full.names = TRUE)
        
         ## select years
         files = files[apply(sapply(years, function(i) grepl(i, files)), 1, any)]
-    
+        files = files[grepl("365.S3.", files)]
         openVar <- function(fileID, vname) {
             tfile = paste(tfile0 , fileID, vname, '.Rd', sep = '-')
             
-            if (file.exists(tfile)) {
+            if (file.exists(tfile) && grab_cache) {
                 load(tfile)
             } else {
                 print(tfile)
                 files = files[grepl(fileID, files)]    
+                
                 processSaveFile <- function(file, yr) {
                     dat =  process.jules.file(file, NULL, vname)
                     if (!is.list(dat)) {
@@ -73,14 +69,15 @@ makeDat <- function(id, dir, years_out) {
             return(dat)
         }
         dats = mapply(openVar, fileIDs, varnames)
-        
+        print("yayandwow")
+
         cover = dats[-1, 'cover']
         #if (mod == "MIROC5") browser()
         makeCover <- function(ty) {
             print(ty)
             group <- function(i) {
                 ctfile = paste(c(tfile0, 'coverSummed', ty, '.nc'), collapse = '-')
-                if (file.exists(ctfile)) return(brick(ctfile))
+                if (file.exists(ctfile) && grab_cache) return(brick(ctfile))
                 cv = i[ty]
                 out = cv[[1]]
                 
@@ -122,6 +119,7 @@ makeDat <- function(id, dir, years_out) {
         tas    = layer.apply(dats[-1, 'tas'   ], function(i) i)
 
         out_dirM = paste(out_dir,  mod, id, '', sep = '/')
+        makeDir(out_dirM)
         writeOut <- function(dat, name) {
             file = paste0(out_dirM,  name, '.nc')
             print(file)
