@@ -5,8 +5,19 @@ library(raster)
 library(rasterExtras)
 library(gitBasedProjects)
 library(ncdf4)
+library(mapproj)
 sourceAllLibs("libs/")
 graphics.off()
+
+#sea = raster('data/seamask.nc')== 0
+#ice = raster('data/icemask.nc')
+#bare = raster('../fireMIPbenchmarking/data/benchmarkData/veg_cont_fields_CRU.nc')
+#relief = aggregate(raster("data/ETOPO1_Ice_g_gmt4.grd"), 10)
+#oceanDepth = relief
+#test = (relief>0) & is.na(raster::resample(bare, relief))
+#icesheet = relief
+#icesheet[!test] = NaN
+#oceanDepth[oceanDepth >0] = NaN
 
 ############
 ## params ##
@@ -35,7 +46,7 @@ obs = mean(brick(obs_file))
 obsL = (obs)
 
 OpenPlotMap <- function(model, period, cols, limits, dcols = NULL, dlimits = NULL, dat0 = NULL,
-                    anomolise = NULL, pnew = TRUE) {
+                    anomolise = NULL, pnew = TRUE, id = NULL) {
     file = paste(dir, model, period, "fullPost.nc", sep = '/')
     file = paste(dir, model, period, "model_summary.nc", sep = '/')
     dat = brick(file, varname = variable)[[c(16, 50, 84)]]
@@ -45,15 +56,24 @@ OpenPlotMap <- function(model, period, cols, limits, dcols = NULL, dlimits = NUL
             dat = logistic(logit(dat) - anomolise)
             datP = dat
     } else datP = dat
-    plotStandardMap(datP * sc, cols = cols,limits = limits)
+    datP = datP * sc
+    
+    
+    plotStandardMap(datP, cols = cols,limits = limits)
     if (model == models[1]) mtext(side = 3, period)
     if (is.null(dat0)) {
         mtext(side = 2, adj = 0.2, model)
         if (pnew) plot.new()
     } else {
-        dat = (dat-dat0) * sc
+        dat = datP = (dat-dat0) * sc
         plotStandardMap(dat, cols = dcols, limits = dlimits)
+        limits = dlimits; cols = dcols
     }
+    if (!is.null(id)) {
+        id = paste(id, model, period, sep = '-')
+        plotProj(datP, cols = cols,limits = limits, id = id)
+    }
+
     return(dat)
 }
 
@@ -73,17 +93,18 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
         par(mar = rep(0, 4), oma = c(0, 2, 2, 0))
         
         if (anomolise) datA = obs else datA = NULL
-        dat0 = lapply(models, OpenPlotMap, periods[1], cols, limits, anomolise = datA)
+        id = paste0(fname, c('absolute', 'amonoly')[anomolise + 1])
+        dat0 = lapply(models, OpenPlotMap, periods[1], cols, limits, anomolise = datA, id = id)
         
         if (anomolise) {
             datA = lapply(dat0, function(i) logit(i) - logit(obs))
             dat0 = list(obs)
         } else datA = list(NULL)
         
-       
+        id = paste0(id, '-diff') 
         datP = lapply(periods[2:3], function(p)
                     mapply(OpenPlotMap, models, dat0 = dat0, anomolise = datA,
-                    MoreArgs = list(p, cols, limits, dcols, dlimits)))
+                    MoreArgs = list(p, cols, limits, dcols, dlimits, id = id)))
         StanrdardLegend.new( cols,  limits, dat0[[1]])
         StanrdardLegend.new(dcols, dlimits, datP[[1]][[1]],
                             extend_min = TRUE, extend_max = TRUE)       
@@ -165,9 +186,7 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
         AllN = All < -0.9
         out[AllP] = 4
         out[AllN] = 5
-
         
-        #browser()
         ## All agree
         #for (md in 1:length(sigsP)) for (rcp in 1:length(sigsP[[1]]))
         png("figs/Siggys.png", height = 5, width = 7.2, res = 300, units = 'in')  
@@ -190,8 +209,8 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
         legend('bottomleft', col = colsSigs, pch = 19, pt.cex = 2, legend = c('Sig. fire +', '\t climate', '\t RCP', '\t All - Increase', '\t All - Decrease'), bty = 'n')
         dev.off()
 
-        browser()         
-#browser() 
+                 
+
         fname0  = fname
         fname = paste0(fname, "anomIs_", anomolise, "signifChange", signify, "_Ymaps")
         pdf(paste0("figs/", fname, "pdf"), height = 5, width = 7.2)#, units = 'in',res  = 300)
@@ -199,8 +218,9 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
 
             layout(cbind(1:5, c(6:9, 14), c(10:13,  14)), height = c(1,1, 1, 1, 0.5))
             par(mar = rep(0, 4), oma = c(0, 2, 2, 0))
+            #id = paste0(fname, c('absolute', 'amonoly')[anomolise + 1])
             lapply(models, OpenPlotMap, periods[1], cols, limits,
-                   anomolise = datA, pnew = FALSE)
+                   anomolise = datA, pnew = FALSE, id = NULL)
             
             StanrdardLegend.new( cols,  limits, dat0[[1]])
             pvsp = lapply(1:length(pvs[[1]]), function(i) lapply(pvs, function(j) 100*j[[i]]))
