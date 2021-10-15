@@ -90,7 +90,7 @@ writeRaster.gitInfo.time <- function(...)
     writeRaster.gitInfo(..., zunit = 'month', zname = 'time')
 #alpha2000_2010 = alpha[[-c(1:6)]]
 #alpha2000_2010 = alpha2000_2010[[1:132]]
-writeRaster.gitInfo.time(alpha[[13:nlayers(alpha)]], "outputs/alpha1980-2020.nc",
+writeRaster.gitInfo.time(alpha[[13:nlayers(alpha)]], "outputs/alpha_1980-2020.nc",
                     comment = comment, overwrite = TRUE)
 
 browser()
