@@ -9,16 +9,17 @@ library(mapproj)
 sourceAllLibs("libs/")
 graphics.off()
 
-#sea = raster('data/seamask.nc')== 0
-#ice = raster('data/icemask.nc')
-#bare = raster('../fireMIPbenchmarking/data/benchmarkData/veg_cont_fields_CRU.nc')
-#relief = aggregate(raster("data/ETOPO1_Ice_g_gmt4.grd"), 10)
-#oceanDepth = relief
-#test = (relief>0) & is.na(raster::resample(bare, relief))
-#icesheet = relief
-#icesheet[!test] = NaN
-#oceanDepth[oceanDepth >0] = NaN
-
+if (!exists('oceanDepth')) {
+    sea = raster('data/seamask.nc')== 0
+    ice = raster('data/icemask.nc')
+    bare = raster('../fireMIPbenchmarking/data/benchmarkData/veg_cont_fields_CRU.nc')
+    relief = aggregate(raster("data/ETOPO1_Ice_g_gmt4.grd"), 10)
+    oceanDepth = relief
+    test = (relief>0) & is.na(raster::resample(bare, relief))
+    icesheet = relief
+    icesheet[!test] = NaN
+    oceanDepth[oceanDepth >0] = NaN
+}
 ############
 ## params ##
 ############
@@ -42,7 +43,38 @@ obs_file = "data/ISIMIP_data2/burnt_area_GFED4sObs.nc"
 ##########
 ## Open ##
 ##########
-obs = mean(brick(obs_file))
+
+obs = brick(obs_file)
+obsC = layer.apply(1:12, function(i) mean(obs[[seq(i, nlayers(obs), by = 12)]]))*100
+plotProj(obsC, cols = cols,limits = c(0, 0.1, 0.2, 0.5, limits[-1]), id = 'GFED4s-hist-obs2',
+         bckCol = 'black', units = '%')
+
+
+trnd = raster('../LimFIRE/outputs/longTermRecord_modis--Jan_2014-Dec_2019_OVER_Jan_2001-Dec_2019_Annual_average.nc')
+trnd = (1-exp(trnd*(-1)))*100
+tr_lims = c(1, 1.1, 1.2, 1.5, 2, 3)
+tr_lims = c(rev(1/tr_lims), tr_lims)
+tr_lims = (1-exp(-tr_lims))*100
+plotProj(trnd, cols = dcols,limits = tr_lims, id = 'MODIS-trend')
+
+
+increase = brick('../LimFIRE/outputs/increasingFireControls-noPeople.nc')[[1]]
+counter = abs(brick('../LimFIRE/outputs/counteractingFireControls.nc')[[1]])
+#browser()
+plotProj(increase, cols = c("white", "#7570b3", "#d95f02", "#1b9e77"),limits = seq(0.5, 2.5,1), id = 'trend-increase-comb', greyBck = TRUE, noCut = TRUE)
+
+#plotProj(decrease, cols = c('white','#d7191c', '#2c7bb6'),limits = seq(0.5, 1.5,1), id = 'trend-counter', greyBck = TRUE)
+
+
+decrease = abs(brick('../LimFIRE/outputs/decreasingFireControls-noPeople.nc')[[1]])
+
+plotProj(decrease, cols = c('white', '#1f78b4','#a6cee3', '#fc8d62'),limits = seq(0.5, 2.5,1), id = 'trend-decrease-comb2', greyBck = TRUE, noCut = TRUE)
+
+
+obs = mean(obs)
+plotProj(obs*100*12, cols = cols,limits = c(0, 0.1, 0.2, 0.5, limits[-1]),
+         id = 'GFED4s-hist-aaobs')
+
 obsL = (obs)
 
 OpenPlotMap <- function(model, period, cols, limits, dcols = NULL, dlimits = NULL, dat0 = NULL,
@@ -71,7 +103,9 @@ OpenPlotMap <- function(model, period, cols, limits, dcols = NULL, dlimits = NUL
     }
     if (!is.null(id)) {
         id = paste(id, model, period, sep = '-')
-        plotProj(datP, cols = cols,limits = limits, id = id)
+        if(grepl('fuel', id)) browser()
+        plotProj(datP, cols = cols,limits = limits, id = id, units = '%',
+                 extend_min =c(F, T)[any(limits<0)+1])
     }
 
     return(dat)
@@ -189,6 +223,7 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
         
         ## All agree
         #for (md in 1:length(sigsP)) for (rcp in 1:length(sigsP[[1]]))
+        if (F) {
         png("figs/Siggys.png", height = 5, width = 7.2, res = 300, units = 'in')  
         colsSigs = c('#fc8d62', '#8da0cb', '#66c2a5', '#a50026', '#313695')
         plotStandardMap(out, readyCut = TRUE, cols = colsSigs,
@@ -208,9 +243,8 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
                         limits = seq(1.5, 4.5))
         legend('bottomleft', col = colsSigs, pch = 19, pt.cex = 2, legend = c('Sig. fire +', '\t climate', '\t RCP', '\t All - Increase', '\t All - Decrease'), bty = 'n')
         dev.off()
-
-                 
-
+        }
+                
         fname0  = fname
         fname = paste0(fname, "anomIs_", anomolise, "signifChange", signify, "_Ymaps")
         pdf(paste0("figs/", fname, "pdf"), height = 5, width = 7.2)#, units = 'in',res  = 300)
@@ -234,7 +268,15 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
         dev.off()
     }  
     
-    triangulaise <- function(p, addLegend, lab, dlimits, pval = NULL) {
+    triangulaise <- function(p, addLegend, lab, dlimits, pval = NULL, idE = '') {
+        #browser()
+        id = paste('multiModle-', fname, c('absolute', 'amonoly')[anomolise + 1], 
+                   lab,idE, sep = '-') 
+        #id = paste0(id, idE)
+        
+        plotProj(p, cols = dcols,limits = dlimits, id = id, extend_min = TRUE)
+
+        
         perctile <- function(i) {            
             if (nlayers(p[[1]])>1) q = layer.apply(p, function(q) q[[i]]) else q = p
             P = mean(layer.apply(q, function(i) {i[i<0] = 0; i}))
@@ -268,7 +310,10 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
             }            
             if (is.null(pval) || !controlT) e = NULL
             else e = 4 - sum(layer.apply(pval, function(i) abs(i)>95))
+            id = paste0(id, 'collapsed')
             
+            plotProj(PN, cols = PNcols,limits =  0.5+1:((length(PNlims)+1)^2-1), id = id,
+                     extend_min = TRUE)
             plotStandardMap(PN, e = e, limits_error = 0.5:3.5, cols = PNcols,
                             limits = 0.5+1:((length(PNlims)+1)^2-1), ePatternRes = 50, 
                             ePatternThick = 0.67,
@@ -344,10 +389,10 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
         StanrdardLegend.new(cols,  limits, dat0[[1]], extend_max = extend_max, maxLab = maxLab, 
                   units = '%')
         
-        mapply(triangulaise, datP, pval = pvsp, c(F, T), c("RCP2.6", "RCP6.0"),
-              MoreArgs = list(dlimits = dlimits))
+        #mapply(triangulaise, datP, pval = pvsp, c(F, T), c("RCP2.6", "RCP6.0"),
+        #      MoreArgs = list(dlimits = dlimits))
     dev.off()
-   
+    
     if (signify) {
         fnameP = paste0(fname, "anomIs_", anomolise, "_CXmaps")
         pdf(paste0("figs/", fnameP, "anomIs_", anomolise, "sign",signify, "_CXmaps.pdf"),
@@ -359,7 +404,7 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
             plot.new()
             plot.new()
             mapply(triangulaise, pvsp, c(F, T), c("RCP2.6", "RCP6.0"),
-                   MoreArgs = list(dlimits =sdlimits))
+                   MoreArgs = list(dlimits =sdlimits, idE = 'Conf'))
         dev.off()
         
     }  

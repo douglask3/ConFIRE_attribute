@@ -8,40 +8,30 @@ library(mapplots)
 
 library(rgdal)
 
-#SA_ste <- readOGR(dsn = "data/South_America", layer = "South_America")
-#rivers <- readOGR(dsn = "data/majorrivers_0_0", layer = "MajorRivers")
-
-StandardLegend <- function(cols, limits, dat, rightx = 0.95, extend_max = TRUE, oneSideLabels = TRUE, add = FALSE, ...) {
-    if (add)        
-        plot_loc = c(0.41, rightx, 0.1, 0.13)
-    else 
-        plot_loc = c(0.01, rightx, 0.3, 0.56)
-    add_raster_legend2(cols, limits, dat = dat, add = add,
-                       transpose = FALSE, srt = 0, oneSideLabels= oneSideLabels,
-                       plot_loc = plot_loc,
-                       ylabposScling = 1, extend_max = extend_max, ...)
-}
-
-lineBox <- function(x, y, ...) 
-    lines(c(x[1], x[2], x[2], x[1], x[1]), c(y[1], y[1], y[2], y[2], y[1]),...)
 
 plotProj <- function(r, cols, limits, e = NULL, add_legend = FALSE,
                             limits_error = c(0.2, 0.200000001),
                             title2 = '', title3 = '', xlim = c(-180, 180), ylim = c(-60, 90),
-                            ePatternRes = 67, ePatternThick = 0.5,
-                            ...,  speedy = T, id = '') {
+                            ePatternRes = 67, ePatternThick = 0.5, greyBck = FALSE, 
+                            bckCol = 'black', txtCol = 'white', extend_min = FALSE,
+                            ...,  speedy = T, id = '', units = '', oneSideLabels = FALSE,
+                            noCut = FALSE) {
     
     print(id)
     r0 = r
-    selectR <- function(mn, bs) {
+    selectR <- function(r, mn, bs) {
+         
+        if (is.list(r)) return(selectR(r[[sample(1:length(r), 1)]], mn, bs))
         if (nlayers(r) == 1) {
             rn = r[[1]]
+            print("yay")
+            #browser()
         } else if (nlayers(r) == 3) {
         
             if (min.raster(r, na.rm = TRUE) < 0) {
                 print("anaomolie")
                 ntrans = TRUE
-                r = (r0+100)/2
+                r = (r+100)/2
             } else ntrans = FALSE
             r = logit(r/100)
             rn = r[[1]]
@@ -61,10 +51,14 @@ plotProj <- function(r, cols, limits, e = NULL, add_legend = FALSE,
                 rn[rn == min.raster(rn)] = NaN
             }
         } else if(nlayers(r) == 12) {
-            browser()
+            lyr = (mn %/% bs) %% 12 + 1
+            rn = r[[lyr]]
+           
         } else if(nlayers(r) > 1) {
             browser()
         }
+        #browser()
+        if (!noCut) {
         if (limits[1] < 0) {
             
             cutP = min(abs(limits))
@@ -73,10 +67,13 @@ plotProj <- function(r, cols, limits, e = NULL, add_legend = FALSE,
         } else {
             if(limits[1] == 0) cutP = limits[2]
             else cutP = limits[1]
-            cutP = max(cutP, quantile(rn[], 0.5, na.rm = TRUE))             
+            cutP = max(cutP, quantile(rn[], 0.5, na.rm = TRUE))    
+               
             rn[rn < cutP] = NaN
         }
-     
+        } else {
+            rn[rn == 0] = NaN
+        }
         
         return(rn)
     }
@@ -84,23 +81,33 @@ plotProj <- function(r, cols, limits, e = NULL, add_legend = FALSE,
     bareCols = c("#00441b", "#7fbc41", "yellow", "brown")
     dir = paste0('figs/', id)
     makeDir(dir)
+
+    if (greyBck) bareCols = c('grey', 'white')
+    
     plotFUN <- function(rot, ...) {
         #browser()
         nrots = paste(c(rep('0', 6-nchar(rot[1])), rot[1]), collapse = '')
         figname = paste0(dir, '/map-', nrots, '.png')
         if (file.exists(figname)) return()
-        png(figname, height = 6, width = 6, units = 'in', res = 300)
+        png(figname, height = 6, width = 6, units = 'in', res = 150)
         
         par(mar = rep(5, 4))
-        FUN <- function(x, colsi = cols, limitsi = limits, add = TRUE, spt.cex=1) 
+        FUN <- function(x, colsi = cols, limitsi = limits, add = TRUE, spt.cex=1){
+            #browser() 
             plot_raster_from_raster(x,coast.lwd = 0, 
                                     cols = colsi, limits = limitsi, add_legend = FALSE,
                                     quick = TRUE, add = add,spt.cex= spt.cex, 
                                     orientation = rot[-1], ...)
-        #browser()
-        if (rot[1] %% rotBase == 0) rn = selectR(rot[1], rotBase)
+        }
+        if (rot[1] == 1 || rot[1] %% rotBase == 1) rn = selectR(r, rot[1], rotBase)
         rn <<- rn
+
+       
         FUN(rn, add = FALSE)
+        if (!is.null(bckCol)) {
+            polygon(9E9 * c(-1, 1, 1, -1), 9E9 * c(-1, -1, 1, 1), xpd = NA, col =  bckCol)
+            FUN(rn)
+        }
         FUN(bare, bareCols, 0:100)
         FUN(rn, spt.cex=0.4)
         FUN(ice, c("transparent", "#EFEFFF"), c(0.5))
@@ -111,28 +118,49 @@ plotProj <- function(r, cols, limits, e = NULL, add_legend = FALSE,
         FUN(icesheet, c("white", "#FFAA88"), c(0, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000), spt.cex=0.1)
         FUN(bare, bareCols, 0:100, spt.cex=0.3)
         FUN(rn, spt.cex=0.2)
+        mnthNames = c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 
+                      'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
+        mn = (rot[1] %/% rotBase) %% 12+1
+        
+        if (nlayers(r) == 12) 
+            mtext(side = 1, line = -1.4, adj = 0.09, mnthNames[mn], cex = 2, col = txtCol)
         
         dev.off()
         #FUN()
     }
     start = c(10, -120, 0)
     end  = c(10, 239, 0)
-    nFrames = 360
+    nFrames = round(360*2/3)
+    rotBase = 5
+
+    #start = c(10, -120, 0)
+    #end  = c(10, 239, 0)
+    #nFrames = 3
+    #rotBase = 1
+   
     projection = 'orthographic'
     prj_parameters = NULL
-    rotBase = 5
     frameSpeed = 9
     rot = cbind(1:nFrames, mapply(seq, start, end, length.out = nFrames))
     dir = paste0(c(dir, '/', projection, '-', prj_parameters, '-', 
                    start, '-', end, '-', nFrames, '-', rotBase, '/'), collapse = '')
     makeDir(dir)
     
+    png(paste0(dir, '/legend.png'), height = 5.5, width = 7, res = 300, units = 'in')
+        plot.new()
+        polygon(9E9 * c(-1, -1, 1, 1), 9E9 * c(-1, 1, 1, -1), col = bckCol, xpd = NA)
+        StandardLegend(dat = r[[1]], cols = cols, limits = limits, add = TRUE, 
+                       ylabposScling = 0.3, fgCol = txtCol, bckCol = bckCol, 
+                       oneSideLabels = oneSideLabels, units = units,
+                       extend_min = extend_min)
+    dev.off()  
+    
     #rot = seq(start, end, by = turnSize)
     figureName = paste0(dir, '/gmap-', frameSpeed, '.gif')
     if (file.exists(figureName)) return()
     
     apply(rot, 1, plotFUN, projection = projection, prj_parameters = prj_parameters)
-    commd = paste0("convert -delay 1 ", dir, '/*.png ', figureName)
+    commd = paste0("convert -delay 1 ", dir, '/map*.png ', figureName)
     system(commd)
    
 }
