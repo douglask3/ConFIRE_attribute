@@ -1,18 +1,21 @@
 ###########
 ## setup ##
 ###########
+source('../gitProjectExtras/gitBasedProjects/R/sourceAllLibs.r')
 library(raster)
-library(rasterExtras)
-library(gitBasedProjects)
+sourceAllLibs("../rasterextrafuns/rasterExtras/R/")
+sourceAllLibs("../gitProjectExtras/gitBasedProjects//R/")
 library(ncdf4)
 library(mapproj)
 sourceAllLibs("libs/")
+sourceAllLibs('../jules_benchmarking/libs/dataProcess/')
 graphics.off()
 
 if (!exists('oceanDepth')) {
     sea = raster('data/seamask.nc')== 0
     ice = raster('data/icemask.nc')
-    bare = raster('../fireMIPbenchmarking/data/benchmarkData/veg_cont_fields_CRU.nc')
+    bare = 100*(1-raster('../savanna_fire_feedback_test/data/driving_Data/TreeCover.nc')/0.8)
+    bare = 100*(0.1+bare/200)
     relief = aggregate(raster("data/ETOPO1_Ice_g_gmt4.grd"), 10)
     oceanDepth = relief
     test = (relief>0) & is.na(raster::resample(bare, relief))
@@ -23,6 +26,58 @@ if (!exists('oceanDepth')) {
 ############
 ## params ##
 ############
+
+jules_dir = "/hpc/data/d05/cburton/jules_output/"
+
+jules_hist = "u-bi607_HIST/"
+jules_ssp3 = "u-cd136_SSP1/"
+
+varname = "burnt_area_gb"
+
+byHist = 0.5
+byFutr = 0.5
+pauseStart = 20
+pauseEnd = 30
+zoomOut = 10*3
+stopEnd = 100
+
+start = seq(1933-31, 2005.5, by = byHist)
+start = c(start, seq(2006, 2070, by = byFutr))
+start = c(start, rep(2070, pauseEnd))
+start = c(rep(start[1], pauseStart), start)
+start = start + 30
+start = c(start, seq(2100, 2100, length.out = zoomOut))
+start = c(start, rep(2100, stopEnd))
+start = start - 1931
+start = round(start)
+jules_out_temp = 'temp/jules_out_low.nc'
+
+
+if (file.exists(jules_out_temp)) jules = brick(jules_out_temp)  else {
+    obs = mean(brick("/data/dynamic/dkelley/jules_benchmarking/data/GFED4s_burnt_area.nc"))*12
+    obs = raster::resample(obs, pres)
+    hist = openMod(jules_hist, jules_dir, varname, 1932:2015, 1, fileID = 'Annual')  *60*60*24*360
+    future = openMod(jules_ssp3, jules_dir, varname, 2015:2101, 1, fileID = 'Annual')  *60*60*24*360
+    pres = mean(hist[[(-10:0) + nlayers(hist)]])
+   
+    jules = addLayer(hist, future)
+    jules2 = logistic(logit(jules) + logit(obs) - logit(pres))
+    jules2 = (jules2 - obs)*100
+    # browser()
+    #jules = jules - pres
+    #jules = jules
+    jules = writeRaster(jules2, file = jules_out_temp,  overwrite=TRUE)
+}
+jules = jules[[start]]#[[50:65]]
+names(jules) = start + 1931
+plotProj(jules, cols = dcols, limits = dlimits, id = 'jules_low2',
+         bckCol = 'black', units = '%', projection = 'perspective', prj_parameters=2,start = c(-20, -75, 0), end  = c(-20, -50, 0), spt.cex_data = 5, spt.cex_ocean = 1, spt.cex_bare = 1.7,
+        nFrames=nlayers(jules), rotBase= 1)
+browser()
+
+
+
+
 dir = 'outputs/sampled_posterior_ConFire_ISIMIP_solutions/attempt3/'
 models = c("GFDL-ESM2M", "HADGEM2-ES", "MIROC5", "IPSL-CM5A-LR")
 periods = c("historic", "RCP2.6", "RCP6.0")
