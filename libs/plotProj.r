@@ -15,7 +15,12 @@ plotProj <- function(r, cols, limits, e = NULL, add_legend = FALSE,
                             ePatternRes = 67, ePatternThick = 0.5, greyBck = FALSE, 
                             bckCol = 'black', txtCol = 'white', extend_min = FALSE,
                             ...,  speedy = T, id = '', units = '', oneSideLabels = FALSE,
-                            noCut = FALSE) {
+                            noCut = FALSE,
+                            start = c(10, -120, 0), end  = c(10, 239, 0),
+                            nFrames = round(360*2/3), rotBase = 5, projection = 'orthographic',
+                            prj_parameters = NULL, frameSpeed = 9,
+                            spt.cex_data = 0.2, spt.cex_ocean = 0.3, 
+                            spt.cex_ice = spt.cex_ocean, spt.cex_bare = spt.cex_ocean) {
     
     print(id)
     r0 = r
@@ -24,8 +29,7 @@ plotProj <- function(r, cols, limits, e = NULL, add_legend = FALSE,
         if (is.list(r)) return(selectR(r[[sample(1:length(r), 1)]], mn, bs))
         if (nlayers(r) == 1) {
             rn = r[[1]]
-            print("yay")
-            #browser()
+            
         } else if (nlayers(r) == 3) {
         
             if (min.raster(r, na.rm = TRUE) < 0) {
@@ -55,9 +59,12 @@ plotProj <- function(r, cols, limits, e = NULL, add_legend = FALSE,
             rn = r[[lyr]]
            
         } else if(nlayers(r) > 1) {
-            browser()
+            lyr = (mn %/%  bs)
+            if (bs>1) lyr = lyr + 1
+            rn = r[[lyr]]
+            print(lyr)
         }
-        #browser()
+        
         if (!noCut) {
         if (limits[1] < 0) {
             
@@ -94,58 +101,56 @@ plotProj <- function(r, cols, limits, e = NULL, add_legend = FALSE,
         par(mar = rep(5, 4))
         FUN <- function(x, colsi = cols, limitsi = limits, add = TRUE, spt.cex=1){
             #browser() 
-            plot_raster_from_raster(x,coast.lwd = 0, 
+            plot_raster_from_raster(x,coast.lwd = 0, e = NULL,
                                     cols = colsi, limits = limitsi, add_legend = FALSE,
                                     quick = TRUE, add = add,spt.cex= spt.cex, 
                                     orientation = rot[-1], ...)
         }
-        if (rot[1] == 1 || rot[1] %% rotBase == 1) rn = selectR(r, rot[1], rotBase)
+        if (rot[1] == 1 || rot[1] %% rotBase == 1 || rotBase == 1) rn = selectR(r, rot[1], rotBase)
+        #browser()
         rn <<- rn
-
+    
        
         FUN(rn, add = FALSE)
+        
         if (!is.null(bckCol)) {
             polygon(9E9 * c(-1, 1, 1, -1), 9E9 * c(-1, -1, 1, 1), xpd = NA, col =  bckCol)
             FUN(rn)
         }
         FUN(bare, bareCols, 0:100)
-        FUN(rn, spt.cex=0.4)
+        
+        
+        FUN(rn, spt.cex=spt.cex_data * 2)
         FUN(ice, c("transparent", "#EFEFFF"), c(0.5))
         FUN(sea, c("transparent", "blue"), limits = c(0.5))
-        FUN(oceanDepth, c("black", "blue"), c(-9000, -5000, -3000, -2000, -1000), spt.cex=0.3)
+        FUN(oceanDepth, c("black", "blue"), c(-9000, -5000, -3000, -2000, -1000), spt.cex=spt.cex_ocean)
         
-        FUN(ice, c("transparent", "#EFEFFF"), c(0.5), spt.cex=0.3)
-        FUN(icesheet, c("white", "#FFAA88"), c(0, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000), spt.cex=0.1)
-        FUN(bare, bareCols, 0:100, spt.cex=0.3)
-        FUN(rn, spt.cex=0.2)
+        FUN(ice, c("transparent", "#EFEFFF"), c(0.5), spt.cex=spt.cex_ice)
+        FUN(icesheet, c("white", "#FFAA88"), c(0, 500, 1000, 1500, 2000, 2500, 3000, 3500, 4000), spt.cex=spt.cex_ice/3)
+        #browser()
+        FUN(bare, bareCols, 0:100, spt.cex=spt.cex_bare)
+        FUN(rn, spt.cex=spt.cex_data)
         mnthNames = c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 
                       'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
         mn = (rot[1] %/% rotBase) %% 12+1
         
         if (nlayers(r) == 12) 
             mtext(side = 1, line = -1.4, adj = 0.09, mnthNames[mn], cex = 2, col = txtCol)
-        
+        if (nlayers(r) > 12) {
+            txt = tail(strsplit(strsplit(names(rn),'.', fixed = TRUE)[[1]][1], 'X')[[1]],1)
+            mtext(side = 1, line = -1.4, adj = 0.09, txt, cex = 2, col = txtCol)
+        }
+        #browser()
         dev.off()
         #FUN()
     }
-    start = c(10, -120, 0)
-    end  = c(10, 239, 0)
-    nFrames = round(360*2/3)
-    rotBase = 5
-
-    #start = c(10, -120, 0)
-    #end  = c(10, 239, 0)
-    #nFrames = 3
-    #rotBase = 1
-   
-    projection = 'orthographic'
-    prj_parameters = NULL
-    frameSpeed = 9
+    #browser()
     rot = cbind(1:nFrames, mapply(seq, start, end, length.out = nFrames))
     dir = paste0(c(dir, '/', projection, '-', prj_parameters, '-', 
                    start, '-', end, '-', nFrames, '-', rotBase, '/'), collapse = '')
     makeDir(dir)
     
+    if (F) {
     png(paste0(dir, '/legend.png'), height = 5.5, width = 7, res = 300, units = 'in')
         plot.new()
         polygon(9E9 * c(-1, -1, 1, 1), 9E9 * c(-1, 1, 1, -1), col = bckCol, xpd = NA)
@@ -154,7 +159,7 @@ plotProj <- function(r, cols, limits, e = NULL, add_legend = FALSE,
                        oneSideLabels = oneSideLabels, units = units,
                        extend_min = extend_min)
     dev.off()  
-    
+    }
     #rot = seq(start, end, by = turnSize)
     figureName = paste0(dir, '/gmap-', frameSpeed, '.gif')
     if (file.exists(figureName)) return()
