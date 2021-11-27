@@ -60,6 +60,8 @@ forPnt <- function(pnt, nm) {
             return(unlist(py))
         else 
             polygon(px, py, col = make.transparent(col, 0.95), border = NA)
+
+        return(py)
     }
     py = mapply(addPoly, likis)
     test = which(apply(py, 1, sum)>0)
@@ -113,11 +115,13 @@ forPnt <- function(pnt, nm) {
     #pc =
     #pc[is.infinite(pc)] = '100+'
     mtext(side = 3, line = -1.5, adj = 1,  paste0(nm, ' at ', pc[1], '% likihood'))
+
+    browser()
     
 }
 
 png("figs/likihoodEventCurves.png", height = 6, width = 5, units = 'in', res = 300)
-    par(mfrow = c(3, 1), mar = rep(1, 4), oma = c(2, 2, 0, 0))
+    par(mfrow = c(3, 2), mar = rep(1, 4), oma = c(2, 2, 0, 0))
     mapply(forPnt,pnts, names(pnts))
     mtext('Burnt area (%)', side = 1, line = 2, font = 2)
     mtext('Prob.', side = 2, line = 0, outer = TRUE, font = 2)
