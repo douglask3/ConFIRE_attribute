@@ -4,16 +4,16 @@ source("libs/plotStandardMap.r")
 source("../gitProjectExtras/gitBasedProjects/R/sourceAllLibs.r")
 sourceAllLibs("../rasterextrafuns/rasterPlotFunctions/R/")
 sourceAllLibs("../rasterextrafuns/rasterExtras/R/")
-
+sourceAllLibs("libs/")
 cols = c('#ffffcc','#ffeda0','#fed976','#feb24c','#fd8d3c','#fc4e2a',
             '#e31a1c','#bd0026','#800026')
 
-likiDir = "outputs/sampled_posterior_ConFire_ISIMIP_solutions/attempt3-full/"
-likiFiles = paste0(c("historic", "RCP2.6", "RCP6.0"), "/fullPost.nc")
+likiDir = "../ConFIRE_ISIMIP/outputs/sampled_posterior_ConFire_ISIMIP_solutions/attempt4-full/"
+likiFiles = paste0(c("historic", "RCP2.6_2010s", "RCP6.0_2010s"), "/fullPost-10.nc")
 
-ObsFile = "/prj/ukesm/doukel/LimFIRE/outputs/longTermRecord_modis--Max_monthly_burnt_areaJan_2001-Dec_2019.nc"
+ObsFile = "../ConFIRE_ISIMIP/longTermRecord_modis--Max_monthly_burnt_areaJan_2001-Dec_2019.nc"
 
-seamaskFile = "data/seamask.nc"
+seamaskFile = "../savanna_fire_feedback_test/data//seamask.nc"
 
 pnts = list("Artic fires 2019" = c(120, 68), "Amazon fires 2019" = c(-53, -10.5),
             "SE Aus 2019/2020" = c(147.5, -35))
@@ -26,6 +26,7 @@ openLiki <- function(file)
     lapply(paste0(likiDirs, '/', file), brick)
 
 likiDirs = list.dirs(likiDir, recursive = FALSE)[c(1, 2)]
+
 likis = lapply(likiFiles, openLiki)
 
 seamask = raster(seamaskFile)
@@ -116,7 +117,7 @@ forPnt <- function(pnt, nm) {
     #pc[is.infinite(pc)] = '100+'
     mtext(side = 3, line = -1.5, adj = 1,  paste0(nm, ' at ', pc[1], '% likihood'))
 
-    browser()
+    #browser()
     
 }
 
