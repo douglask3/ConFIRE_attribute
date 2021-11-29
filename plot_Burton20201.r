@@ -6,21 +6,39 @@ library(mapproj)
 sourceAllLibs("libs/")
 graphics.off()
 
+############
+## PARAMS ##
+############
 cols = rev(c("#01665e", "#8c510a", 'red'))
-fname = "figs/Burton2021/"
+fname = "figs/Burton2021_low/"
 grabCache = FALSE
 
+cveg_file_ssp3 = "data/Burton2021_cveg.csv"
+cveg_no_fire_file_ssp3 = "data/burton2021_cveg_nofire.csv"
+tas_file_ssp3 = "data/Burton2021_tas.csv"
+
+ylimAll = NULL
+
+cveg_file_ssp3 = 'data/Burton2021_cveg_lessEm.csv'
+cveg_no_fire_file_ssp3 = "data/burton2021_cveg_nofire_lessEmis.csv"
+tas_file_ssp3 = "data/Burton2021_tas_lessEmis.csv"
+
+ylimAll = c(-77.10793,10.70821)
+
+yrs = 1890:2100
+
+GWT = c(1.5, 2, 3, 4, 5)
+
+
+##########
+## FUNS ##
+##########
 openSpline <- function(file) {
     out = read.csv(file, stringsAsFactors = FALSE)
     if (is.character(out[1,1])) out = out[-1,]
     
     out = spline(out[,1], out[,2], xout = seq(1860, 2100, length.out = 1000))
 }
-
-cveg = openSpline("data/Burton2021_cveg.csv")
-cveg2day = cveg[[2]][which.min(abs(cveg[[1]] - 2021))]
-cvegNF =  openSpline("data/burton2021_cveg_nofire.csv")
-cveg[[2]] = cveg[[2]] -  openSpline("data/burton2021_cveg_nofire.csv")[[2]]
 
 fColGen <- function(col) {
     xfCols = c("white", rep(col, 10))
@@ -31,27 +49,34 @@ fColGen <- function(col) {
     xfCols = paste0(xfCols, hx)
 }
 
-xfCols = fColGen('blue')
-yfCols = fColGen('red')
-
-tas = read.csv("data/Burton2021_tas.csv", stringsAsFactors = FALSE)[-1,]  
-tas = spline(tas[,1], tas[,2], n = 1000) 
-
-tasYrs <- function(s, e, x) {
+MnYrs <- function(s, e, x) {
     test = x[[1]] > s & x[[1]] < e
     mean(x[[2]][test])
 }
-yrs = 1890:2100
 
-mnVeg = mapply(tasYrs, yrs-30, yrs, MoreArgs = list(cveg))
-cveg[[2]] = cveg[[2]] - max(cveg[[2]])#mnVeg[yrs == 2021]
+###############
+## load data ##
+###############
+cveg = openSpline(cveg_file_ssp3)
+cveg2day = cveg[[2]][which.min(abs(cveg[[1]] - 2021))]
+cveg[[2]] = cveg[[2]] -  openSpline(cveg_no_fire_file_ssp3)[[2]]
+mnVeg = mapply(MnYrs, yrs-30, yrs, MoreArgs = list(cveg))
+cveg[[2]] = cveg[[2]] - mnVeg[yrs == 2021]#max(cveg[[2]])#
+
+tas = openSpline(tas_file_ssp3)
+mnTas = mapply(MnYrs, yrs-30, yrs, MoreArgs = list(tas))
+
 
 limits = seq(min(cveg[[2]]), max(cveg[[2]]), length.out = 20)
 cols =  make_col_vector(cols, limits = limits)
 
+xfCols = fColGen('blue')
+yfCols = fColGen('red')
 
-mnTas = mapply(tasYrs, yrs-30, yrs, MoreArgs = list(tas))
-GWT = c(1.5, 2, 3, 4, 5)
+
+##################
+## Cal hit pnts ##
+#################
 nGWT = c(GWT[1], paste0(GWT[-1], '.0'))
 GWT = cbind(yrs[sapply(GWT, function(i) which(mnTas > i)[1])], paste0(nGWT, '~DEG~C'))
 YrHts = rbind(c(2021, 'Today'), GWT)
@@ -90,12 +115,13 @@ plotFun <- function(stYr, endYr, flash, plotN) {
     col = cols[cut_results(y, limits)]   
 
     png(fname, height = 5, width = 5.5, res = 300, units = 'in')
-    par(mar = c(4, 4, 4, 4.5))
+    par(mar = c(4, 4.5, 4, 4))
     test = cveg[[1]] >= stYr & cveg[[1]] <= endYr
     x = cveg[[1]][test]; y = cveg[[2]][test]
     col = cols[cut_results(y, limits)]   
     
-    plot(x, y, type = 'n', axes = FALSE, xlab = '', ylab = '', xlim = xlim)
+    plot(x, y, type = 'n', axes = FALSE, xlab = '', ylab = '', xlim = xlim, ylim = ylimAll)
+    print(range(y))
     polygon(9E9 * c(-1, 1, 1, -1), 9E9 * c(-1, -1, 1, 1), col = 'black', xpd = NA)
 
     tasi = mnTas[which.min(abs(yrs - endYr))]
@@ -146,7 +172,7 @@ plotFun <- function(stYr, endYr, flash, plotN) {
     yrTick = unique(round(seq(xlim[1], xlim[2], length.out = 5)))
     axis(2, lwd = 3, font = 2, col = 'white', col.axis = 'white')
     axis(1, at = yrTick, lwd = 3, font = 2, col = 'white', col.axis = 'white')
-    mtext(side = 2, line = 2, 'Gt Carbon lost to changes in fire', col = 'white', cex = 1.3)
+    mtext(side = 2, line = 2, 'Gt Carbon lost to changes in fire\nvs 2001-2021', col = 'white', cex = 1.3)
     
     dev.off()
 }
@@ -163,7 +189,7 @@ end = c(1862:1891, end)
 byHist = 0.5
 byFutr = 0.5
 pauseStart = 20
-pauseEnd = 10*2
+pauseEnd = 30
 zoomOut = 10*3
 stopEnd = 100
 
