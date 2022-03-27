@@ -17,7 +17,7 @@ futuresID = c("RCP2.6", "RCP6.0")
 experiments = c("_on", "_off")
 models = c("GFDL-ESM2M", "HADGEM2-ES", "MIROC5", "IPSL-CM5A-LR")
 
-variables = c("trees")#, 'cveg', 'csoil') #, '
+variables = c("trees", 'cveg', 'csoil') #, '
 
 regionsFile = 'data/GFEDregions.nc'
 TCthreshold = 50
@@ -162,9 +162,9 @@ forRegion <- function(id) {
         dats = lapply(variables, forVariable,   masks = masks,
                     maskID = paste0(id, msname))
     }
-    #datsF = forMask(1, '-forest')
-    #datsN = forMask(2, '-nonforest')
-    return(list(dats))#, datsF, datsN))
+    datsF = forMask(1, '-forest')
+    datsN = forMask(2, '-nonforest')
+    return(list(dats, datsF, datsN))
 }
 
 png("figs/TS-stuff.png", height = 7, width = 9, res = 300, units = 'in')
@@ -175,7 +175,7 @@ cols = c(histOn = '#1b9e77', futrOn26 = '#7570b3', futrOn60 = '#d95f02',
              histRatio = 'black', RCP26Ratio = 'blue', RCP60Ratio = 'red')
 
 
-outs = lapply(1:14, forRegion)
+#outs = lapply(1:14, forRegion)
 
 plot.new()
 legend(lty = 1, col = cols, 'top', names(cols), horiz = TRUE, bty = 'n')
@@ -184,8 +184,8 @@ legend(lty = 1:4, col = 'black', 'bottom', models, horiz = TRUE, bty = 'n')
 dev.off()
 
 
-sigChangePerRegion <- function(out, name, yt, xt, vt = 1){
-    out = out[[vt]][[1]]
+sigChangePerRegion <- function(out, name, vt = 1){
+    out = out[[vt]][[2]]
     
     forModel <- function(mout) {
         mout = mout[[1]]
@@ -197,52 +197,134 @@ sigChangePerRegion <- function(out, name, yt, xt, vt = 1){
                 sum(x[syr:(syr+dt)])
             
             annualSums <- function(...) sapply(syrs, annualSum, ...)
-            dat = apply(dat, 2, annualSums)
-            ratio = log(dat[,1]/dat[,2])
-            
-            ratioMA = sapply(1:(length(ratio)-20), annualSum, ratio, 20)/20
+
+            annualSumsRatio <- function(..., nyrs = 20) {
+                out = annualSums(...)
+                out = sapply(1:(length(out)-20), annualSum, out, 20)/20
+                out = out/mean(out[131])
+            }   
+            dat = apply(dat, 2, annualSumsRatio)
         }
-        sapply(1:2, forRCP)
+        lapply(1:2, forRCP)
     }
-
+   
     ratios = lapply(out, forModel)
-    x = 1:nrow(ratios[[1]])
-    plot(range(x)+1870, exp(range(unlist(ratios))),xaxt = 'n', type = 'n', xlab = 'years', ylab = 'ratio', yaxt = 'n')
-    if (xt) axis(1)
-    axis(2)
-    grid()
-    mtext(name, side = 2, adj = 0.1, line = -2)    
     
-    plotMod <- function(mod, lty) {
+    x = 1:nrow(ratios[[1]][[1]]) + 1870
+    
+    forRCP <- function(rcp) {
+        rcpR = lapply(ratios, function(i) i[[rcp]])
+        
+        plot(range(x), range(unlist(rcpR)),xaxt = 'n', 
+             type = 'n', xlab = 'years', ylab = 'ratio', yaxt = 'n')
+        if (name == tail(regionNames, 1)) axis(1)
+        if (name ==regionNames[1]) axis(3)
+        if (rcp == 1) axis(2)
+        if (rcp == 2) axis(4)
+        grid()
+        mtext(name, side = 2, adj = 0.1, line = -2)    
+        plotMod <- function(mod) {
+            y = rcpR[[mod]]
+            gw = gwts[,1+mod + (rcp-1)*2]
+            lines(x, y[, 2], lty = mod, col = "blue")
+            lines(x, y[, 1], lty = mod, col = "red")
 
-        forRCP <- function(rcp, col) {
-            y = mod[,rcp]
-            lines(x+1870, exp(y), lty = lty, col = col)
-            dy = diff(y)
-            dy[1:99] = 999
-            kickin = which.min(dy)    
-            yr = kickin + 1870
-            gwt = gwts[kickin,lty+1+(rcp-1)*4]
-            points(yr, exp(y[kickin]), pch = 19, col = col)
-            return(c(yr+1870, gwt))
+            findGWT <- function(thresh = 1.5) {
+                if (max(gw) < thresh) return(list(thresh, NaN, NULL, NULL))
+                
+                index = which.min(abs(gw-thresh))
+
+                yr = x[index]
+                val_noFire = y[index, 2]
+                val_Fire = y[index, 1]
+
+                xeq <- function(a, b) if (val_noFire < 1) return(a <= b) else return(a >= b)
+                lines(c(yr, yr), c(0, val_noFire), lty = mod)
+
+                find4Experiment <- function(id) {
+                    index = range(which(xeq(y[,id], val_noFire)))
+                    yr = x[index]
+                    gwts = gw[index] 
+                    return(list(yr = yr, gwts = gwts))
+                }
+                noFire = find4Experiment(2)
+                Fire = find4Experiment(1)
+                
+
+                lines(noFire[['yr']], c(val_noFire, val_noFire), lty = mod)
+                lines(noFire[['yr']], c(val_noFire, val_noFire) + diff(par("usr")[3:4])*0.002,
+                      lty = mod)
+            
+                lines(Fire[['yr']], c(val_noFire, val_noFire), lty = mod)
+                
+                            
+                return(list(thresh,yr,  noFire, Fire))
+            }
+            out = cbind(findGWT(1.5), findGWT(2.0))
+            return(out)
         }
-        out = cbind(forRCP(1, 'blue'), forRCP(2, 'red'))
-        test = mod[,1] == mod[,2]
-        lines(x[test]+1870, exp(mod[test, 1]), lty = lty)
+        out = mapply(plotMod, 1:4, SIMPLIFY = FALSE)
+
         return(out)
     }
-    out = mapply(plotMod, ratios, 1:4, SIMPLIFY = FALSE)
-    return(out)
+    outs = lapply(1:2, forRCP)
+    return(outs)
 }
 regionNames = c("BONA", "TENA", "CEAM", "NHSA", "SHSA", "EURO", "MIDE", "NHAF", "SHAF", "BOAS",
                 "CEAS", "SEAS", "EQAS", "AUST") 
-png("figs/fireGWTs_cal.png", height = 8, width = 12, res = 300, units = 'in')
-    par(mfrow = c(4,4), mar = c(0.25, 2.5, 0.25, 0.25), oma = c(3, 3, 0, 0))
-    results = mapply(sigChangePerRegion, outs, regionNames, 
-                     rep(c(T, F, F, F), 4)[1:length(outs)], 
-                     rev(c(rep(T, 4), rep(F, length(outs)-4))),
-                     MoreArgs = list(1), SIMPLIFY = FALSE)
+png("figs/fireGWTs_cal.png", height = 42, width = 10, res = 300, units = 'in')
+    par(mfrow = c(length(outs),2), mar = c(0.25, 2.5, 0.25, 0.25), oma = c(3, 3, 0, 0))
+    results = mapply(sigChangePerRegion, outs, regionNames,
+                     MoreArgs = list(2), SIMPLIFY = FALSE)
     mtext(side = 2, outer = TRUE, "With:without fire")
+dev.off()
+
+forRegion <- function(result, regioName, axes = c()) {
+   
+    tFUN <- function(x) {y = (1-exp(-abs(x)))^2; y[x<0] = -y[x<0]; y}
+    plot(c(0, 1), c(0, 1), type = 'n', 
+         xaxs = 'i', yaxs = 'i', xaxt = 'n', yaxt = 'n', xlab = '', ylab = '')
+    mtext(side = 3, line = -2, adj = 0.1, regioName)
+
+    labels = c(0.2, 0.5, 1, 1.5, 2, 3, 4)
+    axisFUN <- function(side) axis(side, at = tFUN(labels), labels = labels)
+    lapply(axes, axisFUN)
+    
+    lines(c(-9E9, 9E9), c(-9E9, 9E9))
+
+    xg = seq(-10, 10, 0.01)
+    for (dy in seq(-4, 4, 0.5)) lines(tFUN(xg), tFUN(xg-dy), lty = 4)
+
+    forRCP <- function(rcp, pch) {
+        forTemp <- function(tp, col) {
+        
+            temps = lapply(result[[rcp]], function(i) sapply(i[, tp][3:4], function(j) j[[2]]))
+            errorBox <- function(xy)  {
+                if (all(sapply(xy, is.null))) return()
+                cp = apply(xy, 2, mean)
+                #arrows(xy[1,1], cp[2], xy[2,1], cp[2], angle = 90, code = 3, col = col)
+                #arrows(cp[1], xy[1,2], cp[1], xy[2,2], angle = 90, code = 3, col = col)
+                #points(cp[1], cp[2], pch  = pch, col = col)
+                if (any(is.na(xy))){
+                    print("yay")
+                    xy[is.na(xy)] = 1000
+                }
+                points(tFUN(xy[1,1]), tFUN(xy[1,2]), pch = pch, col = col)
+            }
+            lapply(temps, errorBox)
+            
+        }
+        mapply(forTemp, 1:2, c("blue", "red"))
+    }
+    mapply(forRCP, 1:2, c(4, 20))
+}
+png("figs/GWTs_new.png", height = 12, width = 12, res = 300, units = 'in')
+    par(mfrow = c(4, 4), oma = c(2, 2, 1, 2), mar = rep(0.5, 4))
+    axis3 = c(rep(T, 4), rep(F, 10))
+    axes = cbind(rev(axis3), rep(c(T, F, F, F), length.out = 14), 
+                 axis3, rep(c(F, F, F, T), length.out = 14))
+    
+    mapply(forRegion, results, regionNames, axes = apply(axes, 1, which))
 dev.off()
 
 summerize <- function(dats) {
@@ -256,7 +338,7 @@ summerize <- function(dats) {
     rownames(out) = c("year", "GWT")
     out
 }
-
+browser()
 out = sapply(results, summerize)
 colnames(out) = regionNames
 write.csv(out, file = "yay2.csv")
