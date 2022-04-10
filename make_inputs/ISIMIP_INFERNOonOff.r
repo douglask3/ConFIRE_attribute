@@ -10,7 +10,7 @@ options(error=recover)
 abcd <- function() source("make_inputs/ISIMIP_INFERNOonOff.r")
 countriesMap = raster('../ConFIRE_ISIMIP/data/countries.nc')
 ckey = read.csv("../ConFIRE_ISIMIP/data/countries_key.csv")[,2]
-genVarID = "genVar-C-cover2"
+genVarID = "genVar-C-cover_clims"
 
 fireOffDir = "/hpc/data/d01/hadcam/jules_output/ALL_u-bk886_isimip_0p5deg_origsoil_dailytrif"
 fireOnDir = "/hpc/data/d05/cburton/jules_output/u-cf137/"
@@ -44,11 +44,11 @@ countries = c(#Kenya = 'Kenya',
               #Canada = 'Canada', USA = 'United States of America', UK = 'United Kingdom',
               Global = NA)
 
-fileIDs = c(cover = "ilamb", cveg = "ilamb", cs_gb = "ilamb")
+fileIDs = c(temp = "ilamb", npp = "ilamb", smc = "ilamb", cover = "ilamb", cveg = "ilamb", cs_gb = "ilamb")
 
-varnames =  c(cover = "frac", cveg = "cv", cs_gb = "cs_gb")
+varnames =  c(temp = "t1p5m_gb", npp = "npp_gb", smc = "smc_tot", cover = "frac", cveg = "cv", cs_gb = "cs_gb")
 
-models = c("IPSL-CM5A-LR")#, "HADGEM2-ES", "MIROC5", "GFDL-ESM2M")
+models = c("IPSL-CM5A-LR", "HADGEM2-ES", "MIROC5", "GFDL-ESM2M")
 
 temp_dir = '/data/users/dkelley/ConFIRE_ISIMIP_temp/-makeISIMIPonOffins'
 temp_dir_mem = '/data/users/dkelley/ConFIRE_ISIMIP_temp/memSafe/'
@@ -173,12 +173,7 @@ makeDat <- function(id, dir, years_out, out_dir, mask,  extent, country) {
         
         
         covers = lapply(coverTypes, makeCover)
-          
-        
-        
-        cveg    = layer.apply(dats[, 'cveg'   ], function(i) i)   
-        csoil    = layer.apply(dats[, 'cs_gb'   ], function(i) i)        
-       
+
         writeOut <- function(dat, name) {
             file = paste0(out_dirM,  name, '.nc')
             print(file)
@@ -188,11 +183,18 @@ makeDat <- function(id, dir, years_out, out_dir, mask,  extent, country) {
            
             writeRaster.Standard(dat, file)
         }
-        
-        mapply(writeOut, covers, names(coverTypes))
-        writeOut(cveg, 'cveg')
-        writeOut(csoil, 'csoil')
-        save(covers, cveg , csoil, file = genVarFile)
+          
+        var2layerWrite <- function(name, file = name) {
+            out = layer.apply(dats[, name], function(i) i)   
+            out = writeOut(out, file)
+        }
+        out = list(covers = mapply(writeOut, covers, names(coverTypes)),
+                   cveg  = var2layerWrite('cveg'),
+                   csoil = var2layerWrite('cs_gb', 'csoil'),
+                   temp  = var2layerWrite('temp' ),
+                   npp   = var2layerWrite('npp'  ),
+                   smc   = var2layerWrite('smc'  ))
+        save(out, file = genVarFile)
         closeAllConnections()
         gc()
     }
