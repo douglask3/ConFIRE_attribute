@@ -201,7 +201,7 @@ sigChangePerRegion <- function(out, name, vt = 1){
             annualSumsRatio <- function(..., nyrs = 20) {
                 out = annualSums(...)
                 out = sapply(1:(length(out)-20), annualSum, out, 20)/20
-                out = out/mean(out[131])
+                out = out/mean(out[1])
             }   
             dat = apply(dat, 2, annualSumsRatio)
         }
@@ -230,7 +230,7 @@ sigChangePerRegion <- function(out, name, vt = 1){
             lines(x, y[, 1], lty = mod, col = "red")
 
             findGWT <- function(thresh = 1.5) {
-                if (max(gw) < thresh) return(list(thresh, NaN, NULL, NULL))
+                if (max(gw) < thresh) return(list(thresh, NaN, NaN, NULL, NULL))
                 
                 index = which.min(abs(gw-thresh))
 
@@ -248,21 +248,20 @@ sigChangePerRegion <- function(out, name, vt = 1){
                     return(list(yr = yr, gwts = gwts))
                 }
                 noFire = find4Experiment(2)
+                if (noFire[[1]][1] < yr) return(list(thresh, NaN, val_noFire < 1, NULL, NULL))
                 Fire = find4Experiment(1)
-                
-
+                return(list(thresh, yr,  val_noFire < 1, noFire, Fire))
                 lines(noFire[['yr']], c(val_noFire, val_noFire), lty = mod)
                 lines(noFire[['yr']], c(val_noFire, val_noFire) + diff(par("usr")[3:4])*0.002,
                       lty = mod)
             
                 lines(Fire[['yr']], c(val_noFire, val_noFire), lty = mod)
-                
-                            
-                return(list(thresh,yr,  noFire, Fire))
             }
-            out = cbind(findGWT(1.5), findGWT(2.0))
+            gw = gw[2:(length(gw)-1)]
+            out = sapply(unique(gw), findGWT)
+            
             return(out)
-        }
+       }
         out = mapply(plotMod, 1:4, SIMPLIFY = FALSE)
 
         return(out)
@@ -282,22 +281,32 @@ dev.off()
 forRegion <- function(result, regioName, axes = c()) {
    
     tFUN <- function(x) {y = (1-exp(-abs(x)))^2; y[x<0] = -y[x<0]; y}
-    plot(c(0, 1), c(0, 1), type = 'n', 
-         xaxs = 'i', yaxs = 'i', xaxt = 'n', yaxt = 'n', xlab = '', ylab = '')
-    mtext(side = 3, line = -2, adj = 0.1, regioName)
-
-    labels = c(0.2, 0.5, 1, 1.5, 2, 3, 4)
-    axisFUN <- function(side) axis(side, at = tFUN(labels), labels = labels)
-    lapply(axes, axisFUN)
     
-    lines(c(-9E9, 9E9), c(-9E9, 9E9))
+        plot(c(0, 1), c(0, 1), type = 'n', 
+             xaxs = 'i', yaxs = 'i', xaxt = 'n', yaxt = 'n', xlab = '', ylab = '')
+        mtext(side = 3, line = -2, adj = 0.1, regioName)
 
-    xg = seq(-10, 10, 0.01)
-    for (dy in seq(-4, 4, 0.5)) lines(tFUN(xg), tFUN(xg-dy), lty = 4)
+        labels = c(0.2, 0.5, 1, 1.5, 2, 3, 4)
+        axisFUN <- function(side) axis(side, at = tFUN(labels), labels = labels)
+        lapply(axes, axisFUN)
+    
+        lines(c(-9E9, 9E9), c(-9E9, 9E9))
 
-    forRCP <- function(rcp, pch) {
-        forTemp <- function(tp, col) {
+        xg = seq(-10, 10, 0.01)
+        for (dy in seq(-4, 4, 0.5)) lines(tFUN(xg), tFUN(xg-dy), lty = 4)
+        forRCP <- function(rcp, pch) {
         
+        forModel <- function(mod, col) {
+            res = result[[rcp]][[mod]]
+
+            Fire = lapply(res[5,], function(i) i[[2]][1])
+            test = !sapply(Fire, is.null)
+
+            noFire = unlist(res[1,])[test]
+            Fire = unlist(Fire[test])
+            Fire[is.na(Fire)] = 1000
+            points(tFUN(noFire), tFUN(Fire), pch = pch, col = col)
+            return()
             temps = lapply(result[[rcp]], function(i) sapply(i[, tp][3:4], function(j) j[[2]]))
             errorBox <- function(xy)  {
                 if (all(sapply(xy, is.null))) return()
@@ -314,7 +323,8 @@ forRegion <- function(result, regioName, axes = c()) {
             lapply(temps, errorBox)
             
         }
-        mapply(forTemp, 1:2, c("blue", "red"))
+        
+        mapply(forModel, 1:4, c("#1b9e77", "#d95f02", "#b2df8a", "#a6cee3"))
     }
     mapply(forRCP, 1:2, c(4, 20))
 }
