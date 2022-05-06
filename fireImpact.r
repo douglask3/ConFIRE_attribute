@@ -3,6 +3,7 @@ library(ncdf4)
 library(raster)
 source("../gitProjectExtras/gitBasedProjects/R/sourceAllLibs.r")
 sourceAllLibs("../gitProjectExtras/gitBasedProjects/R/")
+sourceAllLibs("libs")
 sourceAllLibs("../rasterextrafuns/rasterExtras/R/")
 source("libs/process_jules_file.r")
 source("libs/writeRaster.Standard.r")
@@ -17,19 +18,19 @@ futuresID = c("RCP2.6", "RCP6.0")
 experiments = c("_on", "_off")
 models = c("GFDL-ESM2M", "HADGEM2-ES", "MIROC5", "IPSL-CM5A-LR")
 
-variables = c("trees", 'cveg', 'csoil') #, '
+variables = c("trees", "trees")#, 'cveg', 'csoil') #, '
 
 regionsFile = 'data/GFEDregions.nc'
 TCthreshold = 50
 
 gwts = read.csv(gwts)
-gwts = gwts[, 1+c(0, 6, 5, 8, 7, 2, 1, 4, 3)]
-missing = sapply( gwts[1, -1], '*', ((1871:(gwts[1,1]-1))-1871)/(gwts[1,1]-1871))
-missing = cbind(1871:(gwts[1,1]-1), missing)
-gwts = rbind(missing, as.matrix(gwts))
+#gwts = gwts[, 1+c(0, 6, 5, 8, 7, 2, 1, 4, 3)]
+#missing = sapply( gwts[1, -1], '*', ((1871:(gwts[1,1]-1))-1871)/(gwts[1,1]-1871))
+#missing = cbind(1871:(gwts[1,1]-1), missing)
+#gwts = rbind(missing, as.matrix(gwts))
 
 open2TS <- function(period, experiment, model, variable, mask = NULL, maskID = '') {
-    tempFile = paste('temp/fireImpact-GFEDregions', 
+    tempFile = paste('temp/fireImpact-GFEDregions-newGWTs', #
                      period, experiment, model, variable, maskID, 
                      'time series.Rd', sep = '-')
     print(tempFile)
@@ -56,6 +57,7 @@ open2TS <- function(period, experiment, model, variable, mask = NULL, maskID = '
         TC = mean(dat[[1:480]])
         tcMask = addLayer(TC>0.4 & mask, TC<0.4 & mask)
         out = list(out, tcMask)
+        
     } else out = list(out, NULL)
     save(out, file = tempFile)
     return(out)
@@ -183,8 +185,8 @@ legend(lty = 1:4, col = 'black', 'bottom', models, horiz = TRUE, bty = 'n')
 
 dev.off()
 
-
-sigChangePerRegion <- function(out, name, vt = 1){
+sigChangePerRegion <- function(out, name, vt = 2){
+    
     out = out[[vt]][[2]]
     
     forModel <- function(mout) {
@@ -248,9 +250,10 @@ sigChangePerRegion <- function(out, name, vt = 1){
                     return(list(yr = yr, gwts = gwts))
                 }
                 noFire = find4Experiment(2)
-                if (noFire[[1]][1] < yr) return(list(thresh, NaN, val_noFire < 1, NULL, NULL))
+                if (noFire[[1]][1] < yr) return(list(thresh, NaN, val_noFire, NULL, NULL))
                 Fire = find4Experiment(1)
-                return(list(thresh, yr,  val_noFire < 1, noFire, Fire))
+                #if (yr > 2020) browser()
+                return(list(thresh, yr,  val_noFire, noFire, Fire))
                 lines(noFire[['yr']], c(val_noFire, val_noFire), lty = mod)
                 lines(noFire[['yr']], c(val_noFire, val_noFire) + diff(par("usr")[3:4])*0.002,
                       lty = mod)
@@ -259,7 +262,7 @@ sigChangePerRegion <- function(out, name, vt = 1){
             }
             gw = gw[2:(length(gw)-1)]
             out = sapply(unique(gw), findGWT)
-            
+                    
             return(out)
        }
         out = mapply(plotMod, 1:4, SIMPLIFY = FALSE)
@@ -272,31 +275,38 @@ sigChangePerRegion <- function(out, name, vt = 1){
 regionNames = c("BONA", "TENA", "CEAM", "NHSA", "SHSA", "EURO", "MIDE", "NHAF", "SHAF", "BOAS",
                 "CEAS", "SEAS", "EQAS", "AUST") 
 png("figs/fireGWTs_cal.png", height = 42, width = 10, res = 300, units = 'in')
+    
     par(mfrow = c(length(outs),2), mar = c(0.25, 2.5, 0.25, 0.25), oma = c(3, 3, 0, 0))
     results = mapply(sigChangePerRegion, outs, regionNames,
                      MoreArgs = list(2), SIMPLIFY = FALSE)
     mtext(side = 2, outer = TRUE, "With:without fire")
 dev.off()
 
-forRegion <- function(result, regioName, axes = c()) {
+forRegion <- function(result, regioName, axes = c(), rcp) {
    
-    tFUN <- function(x) {y = (1-exp(-abs(x)))^2; y[x<0] = -y[x<0]; y}
-    
-        plot(c(0, 1), c(0, 1), type = 'n', 
-             xaxs = 'i', yaxs = 'i', xaxt = 'n', yaxt = 'n', xlab = '', ylab = '')
+    tFUN <- function(x) {
+        test = x > 3.5
+        x[test] = 4
+        x/4# {y = (1-exp(-abs(x)))^2; y[x<0] = -y[x<0]; y}
+    }
+    plot(c(0, 1), c(0, 1), type = 'n', 
+         xaxs = 'i', yaxs = 'i', xaxt = 'n', yaxt = 'n', xlab = '', ylab = '')
         mtext(side = 3, line = -2, adj = 0.1, regioName)
 
         labels = c(0.2, 0.5, 1, 1.5, 2, 3, 4)
-        axisFUN <- function(side) axis(side, at = tFUN(labels), labels = labels)
+        labels = c(0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4)
+        at = tFUN(labels)
+        labels[length(labels)] = '3.5+'
+        axisFUN <- function(side) axis(side, at = at, labels = labels)
         lapply(axes, axisFUN)
     
         lines(c(-9E9, 9E9), c(-9E9, 9E9))
 
         xg = seq(-10, 10, 0.01)
         for (dy in seq(-4, 4, 0.5)) lines(tFUN(xg), tFUN(xg-dy), lty = 4)
-        forRCP <- function(rcp, pch) {
+        #forRCP <- function(rcp, pch) {
         
-        forModel <- function(mod, col) {
+        forModel <- function(mod) {
             res = result[[rcp]][[mod]]
 
             Fire = lapply(res[5,], function(i) i[[2]][1])
@@ -305,7 +315,12 @@ forRegion <- function(result, regioName, axes = c()) {
             noFire = unlist(res[1,])[test]
             Fire = unlist(Fire[test])
             Fire[is.na(Fire)] = 1000
-            points(tFUN(noFire), tFUN(Fire), pch = pch, col = col)
+            TC = unlist(res[3, test])
+            sourceAllLibs("../rasterextrafuns/rasterPlotFunctions/R/")
+            
+            col = cols[cut_results(TC, limits)]
+            points(tFUN(noFire), tFUN(Fire), pch = 19, cex = 1.2)
+            points(tFUN(noFire), tFUN(Fire), pch = 19, col = col)
             return()
             temps = lapply(result[[rcp]], function(i) sapply(i[, tp][3:4], function(j) j[[2]]))
             errorBox <- function(xy)  {
@@ -318,25 +333,78 @@ forRegion <- function(result, regioName, axes = c()) {
                     print("yay")
                     xy[is.na(xy)] = 1000
                 }
-                points(tFUN(xy[1,1]), tFUN(xy[1,2]), pch = pch, col = col)
+                points(tFUN(xy[1,1]), tFUN(xy[1,2]), pch = 19, col = col)
             }
             lapply(temps, errorBox)
             
         }
         
-        mapply(forModel, 1:4, c("#1b9e77", "#d95f02", "#b2df8a", "#a6cee3"))
-    }
-    mapply(forRCP, 1:2, c(4, 20))
-}
-png("figs/GWTs_new.png", height = 12, width = 12, res = 300, units = 'in')
-    par(mfrow = c(4, 4), oma = c(2, 2, 1, 2), mar = rep(0.5, 4))
-    axis3 = c(rep(T, 4), rep(F, 10))
-    axes = cbind(rev(axis3), rep(c(T, F, F, F), length.out = 14), 
-                 axis3, rep(c(F, F, F, T), length.out = 14))
-    
-    mapply(forRegion, results, regionNames, axes = apply(axes, 1, which))
-dev.off()
+        mapply(forModel, 1:4)#, c("#1b9e77", "#d95f02", "#b2df8a", "#a6cee3"))
 
+}
+limits = c(1.01, 1.05, 1.1, 1.2, 1.4)
+labels = c(paste0('1/', rev(limits)), limits)
+limits = c(rev(1/limits), limits)
+cols = c('#40004b','#762a83','#9970ab','#c2a5cf','#e7d4e8','#f7f7f7',
+         '#d9f0d3','#a6dba0','#5aae61','#1b7837','#00441b')
+plot4RCP <- function(rcp){
+    png(paste0("figs/GWTs_new", rcp, ".png", sep = '-'), 
+        height = 12, width = 12, res = 300, units = 'in')
+        lmat = t(matrix(c(1:15, 15), ncol = 4))
+        layout(lmat)
+        par(oma = c(2, 2, 1, 2), mar = rep(0.5, 4))
+        axis3 = c(rep(T, 4), rep(F, 10))
+        axes = cbind(rev(axis3), rep(c(T, F, F, F), length.out = 14), 
+                    axis3, rep(c(F, F, F, T), length.out = 14))
+    
+        mapply(forRegion, results, regionNames, axes = apply(axes, 1, which), rcp)
+        add_raster_legend2(cols = cols, limits = limits, labelss = labels, add = FALSE, 
+                           transpose = FALSE, srt = 0, ylabposScling = 0.5,
+                           plot_loc = c(0.1, 0.90, 0.77, 0.8), 
+                           extend_max = TRUE, extend_min = TRUE)
+    dev.off()
+}
+#mapply(plot4RCP, 1:2)
+
+
+parisSumm <- function(gwt = 1.5) {
+    forRegion <- function(res) {
+        forRCP <- function(xs) {
+            forMod <- function(x) {
+                index = which.min(abs(gwt - unlist(x[1,])))
+                noF = x[,index][[4]][[2]]
+                if (is.null(noF)) {
+                    index = tail(which(!sapply(x[4,1:index], is.null)), 1)
+                    noF = x[,index][[4]][[2]]
+                }    
+                inF = x[,index][[5]][[2]]
+                if (is.null(inF))  browser()
+                c(noF[1], inF[1])
+            }
+            out = sapply(xs, forMod)
+        }
+        out = lapply(res, forRCP)
+        out = do.call(rbind, out)
+        rownames(out) = paste(rep(c('RCP2.6', 'RCP6.0'), each = 2), c('NoFire', 'WithFire'))
+        return(out)
+    }
+    out = lapply(results, forRegion)
+    out = do.call(rbind, out)
+    rownames(out) = paste(rep(regionNames, each = 4), rownames(out), sep = '-')
+    return(out)
+}
+
+out = lapply(c(1, 1.5, 2), parisSumm)
+out = do.call(cbind, out)
+out = round(out, 2)
+colnames(out) = paste('GWT', rep(c(1, 1.5, 2), each = 4), models, sep = '-')
+write.csv(out, "outputs/GWL_equiv.csv")
+browser()
+
+
+
+
+browser()
 summerize <- function(dats) {
     forRCP <- function(rcp) {
         out = apply(sapply(dats, function(i) i[,rcp]), 1, range)
