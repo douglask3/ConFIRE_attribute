@@ -177,7 +177,7 @@ cols = c(histOn = '#1b9e77', futrOn26 = '#7570b3', futrOn60 = '#d95f02',
              histRatio = 'black', RCP26Ratio = 'blue', RCP60Ratio = 'red')
 
 
-#outs = lapply(1:14, forRegion)
+outs = lapply(1:14, forRegion)
 
 plot.new()
 legend(lty = 1, col = cols, 'top', names(cols), horiz = TRUE, bty = 'n')
@@ -234,23 +234,30 @@ sigChangePerRegion <- function(out, name, vt = 2){
             findGWT <- function(thresh = 1.5) {
                 if (max(gw) < thresh) return(list(thresh, NaN, NaN, NULL, NULL))
                 
-                index = which.min(abs(gw-thresh))
-
+                index = index0 = which.min(abs(gw-thresh))
+                if (index == 1) id = 1:2 else id = (index-1):index
                 yr = x[index]
                 val_noFire = y[index, 2]
                 val_Fire = y[index, 1]
-
+                
                 xeq <- function(a, b) if (val_noFire < 1) return(a <= b) else return(a >= b)
                 lines(c(yr, yr), c(0, val_noFire), lty = mod)
 
                 find4Experiment <- function(id) {
-                    index = range(which(xeq(y[,id], val_noFire)))
+                    index = which(xeq(y[,id], val_noFire))
+                    i = which(index == index0)
+                    if (length(i) == 0 ) {print("legth i"); browser()}
+                    #if (i == 1) browser()
+                    #
+                    #if (all(abs(index - index0) > 1)) browser()
+                    index  = which(abs(index -(1:length(index)) - i)==1)
                     yr = x[index]
                     gwts = gw[index] 
                     return(list(yr = yr, gwts = gwts))
                 }
                 noFire = find4Experiment(2)
-                if (noFire[[1]][1] < yr) return(list(thresh, NaN, val_noFire, NULL, NULL))
+                #if (thresh > 3) browser()
+                #if (noFire[[1]][1] < yr) return(list(thresh, NaN, val_noFire, NULL, NULL))
                 Fire = find4Experiment(1)
                 #if (yr > 2020) browser()
                 return(list(thresh, yr,  val_noFire, noFire, Fire))
@@ -262,7 +269,7 @@ sigChangePerRegion <- function(out, name, vt = 2){
             }
             gw = gw[2:(length(gw)-1)]
             out = sapply(unique(gw), findGWT)
-                    
+            #browser()      
             return(out)
        }
         out = mapply(plotMod, 1:4, SIMPLIFY = FALSE)
@@ -379,7 +386,9 @@ parisSumm <- function(gwt = 1.5) {
                 }    
                 inF = x[,index][[5]][[2]]
                 if (is.null(inF))  browser()
-                c(noF[1], inF[1])
+                id = which.min(abs(noF-gwt))
+                if (abs(noF[id]-gwt)>0.2) browser()
+                c(noF[id], inF[id])
             }
             out = sapply(xs, forMod)
         }
