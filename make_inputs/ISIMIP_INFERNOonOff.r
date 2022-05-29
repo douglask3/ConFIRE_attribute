@@ -10,7 +10,7 @@ options(error=recover)
 abcd <- function() source("make_inputs/ISIMIP_INFERNOonOff.r")
 countriesMap = raster('../ConFIRE_ISIMIP/data/countries.nc')
 ckey = read.csv("../ConFIRE_ISIMIP/data/countries_key.csv")[,2]
-genVarID = "genVar-C-cover_clims"
+genVarID = "genVar-C-cover_clims-sw"
 
 fireOffDir = "/hpc/data/d01/hadcam/jules_output/ALL_u-bk886_isimip_0p5deg_origsoil_dailytrif"
 fireOnDir = "/hpc/data/d05/cburton/jules_output/u-cf137/"
@@ -44,9 +44,9 @@ countries = c(#Kenya = 'Kenya',
               #Canada = 'Canada', USA = 'United States of America', UK = 'United Kingdom',
               Global = NA)
 
-fileIDs = c(temp = "ilamb", npp = "ilamb", smc = "ilamb", cover = "ilamb", cveg = "ilamb", cs_gb = "ilamb")
+fileIDs = c(temp = "ilamb", sw_down = 'ilamb', npp = "ilamb", smc = "ilamb", cover = "ilamb", cveg = "ilamb", cs_gb = "ilamb")
 
-varnames =  c(temp = "t1p5m_gb", npp = "npp_gb", smc = "smc_tot", cover = "frac", cveg = "cv", cs_gb = "cs_gb")
+varnames =  c(temp = "t1p5m_gb", sw_down = 'sw_down', npp = "npp_gb", smc = "smc_tot", cover = "frac", cveg = "cv", cs_gb = "cs_gb")
 
 models = c("IPSL-CM5A-LR", "HADGEM2-ES", "MIROC5", "GFDL-ESM2M")
 
@@ -192,6 +192,7 @@ makeDat <- function(id, dir, years_out, out_dir, mask,  extent, country) {
                    cveg  = var2layerWrite('cveg'),
                    csoil = var2layerWrite('cs_gb', 'csoil'),
                    temp  = var2layerWrite('temp' ),
+                   sw_down  = var2layerWrite('sw_down' ),
                    npp   = var2layerWrite('npp'  ),
                    smc   = var2layerWrite('smc'  ))
         save(out, file = genVarFile)
