@@ -10,7 +10,7 @@ options(error=recover)
 abcd <- function() source("make_inputs/ISIMIP_INFERNOonOff.r")
 countriesMap = raster('../ConFIRE_ISIMIP/data/countries.nc')
 ckey = read.csv("../ConFIRE_ISIMIP/data/countries_key.csv")[,2]
-genVarID = "genVar-C-cover_clims-sw"
+genVarID = "genVar-C-cover_clims-sw-precip"
 
 fireOffDir = "/hpc/data/d01/hadcam/jules_output/ALL_u-bk886_isimip_0p5deg_origsoil_dailytrif"
 fireOnDir = "/hpc/data/d05/cburton/jules_output/u-cf137/"
@@ -44,11 +44,11 @@ countries = c(#Kenya = 'Kenya',
               #Canada = 'Canada', USA = 'United States of America', UK = 'United Kingdom',
               Global = NA)
 
-fileIDs = c(temp = "ilamb", sw_down = 'ilamb', npp = "ilamb", smc = "ilamb", cover = "ilamb", cveg = "ilamb", cs_gb = "ilamb")
+fileIDs = c(temp = "ilamb", sw_down = 'ilamb', npp = "ilamb", smc = "ilamb", cover = "ilamb", cveg = "ilamb", cs_gb = "ilamb", precip = "ilamb")
 
-varnames =  c(temp = "t1p5m_gb", sw_down = 'sw_down', npp = "npp_gb", smc = "smc_tot", cover = "frac", cveg = "cv", cs_gb = "cs_gb")
+varnames =  c(temp = "t1p5m_gb", sw_down = 'sw_down', npp = "npp_gb", smc = "smc_tot", cover = "frac", cveg = "cv", cs_gb = "cs_gb", precip = "precip")
 
-models = c("IPSL-CM5A-LR", "HADGEM2-ES", "MIROC5", "GFDL-ESM2M")
+models = rev(c( "HADGEM2-ES", "GFDL-ESM2M", "IPSL-CM5A-LR", "MIROC5"))
 
 temp_dir = '/data/users/dkelley/ConFIRE_ISIMIP_temp/-makeISIMIPonOffins'
 temp_dir_mem = '/data/users/dkelley/ConFIRE_ISIMIP_temp/memSafe/'
@@ -151,11 +151,11 @@ makeDat <- function(id, dir, years_out, out_dir, mask,  extent, country) {
         #if (mod == "MIROC5") browser()
         makeCover <- function(ty) {
             print(ty)
+            strsplitFrac <- function(i) strsplit(filename.noPath(i[[1]], TRUE), 'frac')[[1]][2]
             group <- function(i) {
-                ctfile = paste(c(tfile0, 'coverSummed', 
-                                 strsplit(filename.noPath(i[[1]], TRUE), 'frac')[[1]][2],
+                ctfile = paste(c(tfile0, 'coverSummed', strsplitFrac,
                                  ty, '.nc'), collapse = '-')
-                
+                 
                 if (file.exists(ctfile)) return(brick(ctfile))
                 cv = i[ty]
                 out = cv[[1]]
@@ -168,7 +168,13 @@ makeDat <- function(id, dir, years_out, out_dir, mask,  extent, country) {
                 return(out)
             }
             
+            ctfile = paste(c(tfile0, 'coverSummed', 
+                                 strsplitFrac(cover[[1]]), strsplitFrac(cover[[length(cover)]]),
+                                 ty, '.nc'), collapse = '-')
+            if (file.exists(ctfile)) return(brick(ctfile))
             coverTy = layer.apply(cover, group)
+            writeRaster(coverTy, ctfile, overwrite = TRUE)
+            return(coverTy)
         }
         
         
@@ -176,6 +182,8 @@ makeDat <- function(id, dir, years_out, out_dir, mask,  extent, country) {
 
         writeOut <- function(dat, name) {
             file = paste0(out_dirM,  name, '.nc')
+            
+            if (file.exists(file)) return(brick(file))
             print(file)
             dat = dat[[-1]]
             nl = 12*floor(nlayers(dat)/12)
@@ -185,7 +193,12 @@ makeDat <- function(id, dir, years_out, out_dir, mask,  extent, country) {
         }
           
         var2layerWrite <- function(name, file = name) {
+            print(name)
+            fout = paste0(out_dirM,  file, '.nc')
+            
+            if (file.exists(fout)) return(brick(fout))
             out = layer.apply(dats[, name], function(i) i)   
+
             out = writeOut(out, file)
         }
         out = list(covers = mapply(writeOut, covers, names(coverTypes)),
@@ -193,6 +206,7 @@ makeDat <- function(id, dir, years_out, out_dir, mask,  extent, country) {
                    csoil = var2layerWrite('cs_gb', 'csoil'),
                    temp  = var2layerWrite('temp' ),
                    sw_down  = var2layerWrite('sw_down' ),
+                   precip  = var2layerWrite('precip' ),
                    npp   = var2layerWrite('npp'  ),
                    smc   = var2layerWrite('smc'  ))
         save(out, file = genVarFile)
