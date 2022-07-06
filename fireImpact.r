@@ -24,10 +24,6 @@ regionsFile = 'data/GFEDregions.nc'
 TCthreshold = 50
 
 gwts = read.csv(gwts)
-#gwts = gwts[, 1+c(0, 6, 5, 8, 7, 2, 1, 4, 3)]
-#missing = sapply( gwts[1, -1], '*', ((1871:(gwts[1,1]-1))-1871)/(gwts[1,1]-1871))
-#missing = cbind(1871:(gwts[1,1]-1), missing)
-#gwts = rbind(missing, as.matrix(gwts))
 
 open2TS <- function(period, experiment, model, variable, mask = NULL, maskID = '') {
     tempFile = paste('temp/fireImpact-GFEDregions-newGWTs', #
@@ -380,6 +376,8 @@ tFUN <- function(x) {
 }
 
 colsF = c("#8c510a", "#c7eae5", "#01665e", "#f6e8c3")
+colsT = c('#67001f','#b2182b','#d6604d','#f4a582','#fddbc7',
+          '#d1e5f0','#92c5de','#4393c3','#2166ac','#053061')
 plot4RCP <- function(rcp){
     png(paste0("figs/GWTs_new", rcp, ".png", sep = '-'), 
         height = 12, width = 12, res = 300, units = 'in')
