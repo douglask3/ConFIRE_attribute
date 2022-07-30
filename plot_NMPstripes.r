@@ -1,6 +1,17 @@
+###########
+## setup ##
+###########
+library(raster)
+source("../gitProjectExtras/gitBasedProjects/R/sourceAllLibs.r")
+sourceAllLibs("../gitProjectExtras/gitBasedProjects/R/")
+sourceAllLibs("../rasterextrafuns/rasterExtras/R/")
+#library(rasterExtras)
+#library(gitBasedProjects)
+library(ncdf4)
+sourceAllLibs("libs/")
 graphics.off()
 
-dat = read.csv("data/Tas_vs_year.xlsx - NBP.csv", header = FALSE, stringsAsFactors = FALSE)
+dat = read.csv("data/Tas_vs_year.xlsx - NBP.csv", header = FALSE, stringsAsFactors = FALSE)#[,-1]
 
 models = c("HadGEM2-ES" = "H", "GFDL" = "G", "IPSL" = "I", "MIROC" = "M")
 
@@ -36,30 +47,36 @@ forRegions <- function(region, Rid, yearsTest = TRUE) {
     
     #axis(1)
     modelNBP <- function(model) {
-        idM = which(dat[,2] == model)
+        idM = which(as.character(dat[,2]) == model)
         id = idR[idR > idM][1]
+        
         apply(dat[id+(2:1), -1], 2, as.numeric)
     }
 
     nbps = lapply(models, modelNBP)
     dnps = lapply(nbps, function(i) i[2,] - i[1,])
     
-    testKicker <- function(x, temp, syrs = 2000) {
+    testKicker <- function(x, temp, syrs = 2000, offset = 10) {
         syr = which(years == syrs)
         x0 = x[syr+ 1:20]
         doTest <- function(i) 
             wilcox.test(x0, dnps[[1]][i + 1:20], paired = FALSE)[[3]]
 
         pvs = sapply(syr:(length(x) -20), doTest)
-        sig = which(pvs < 0.1)[1]
+        sig = which(pvs < 0.1)[1] + offset
         c(sig + syrs + 10, temp[sig + syr])
     }
     fireSig = mapply(testKicker, dnps, temps, SIMPLIFY = FALSE)
     
+    ddnps = lapply(dnps, function(x) sapply(20:length(x), function(i) mean(x[(i-19):i])))
+    fireSig_an = mapply(testKicker, ddnps, temps, SIMPLIFY = FALSE)
+    
     findColsLims <- function(dats) {
         limits = sort(c(0, quantile(dats, seq(0.1, 0.9, 0.1))))
         limits = unique(signif(limits, 1))
-    
+        limits[limits == -0.09] = -0.1
+        limits = limits[limits != -0.0003]
+ 
         colsA = colsB = c()
         if (any(limits < 0))
             colsA = make_col_vector(cols1, ncols = 1+sum(limits <= 0))
@@ -72,12 +89,9 @@ forRegions <- function(region, Rid, yearsTest = TRUE) {
         return(list(limits, cols))
     }
     c(limits, cols) := findColsLims(unlist(nbps))
-
-    
     c(dlimits, dcols) := findColsLims(unlist(dnps))
    
-    
-    forModel <- function(model, mi, x, mark) {
+    forModel <- function(model, mi, x, mark1, mark2) {
         idM = which(dat[,2] == model)
         id = idR[idR > idM][1]
         nbp = dat[id+(2:1), ]
@@ -92,39 +106,20 @@ forRegions <- function(region, Rid, yearsTest = TRUE) {
             cols.pt = cols[col]  
             mapply(plotLines, x, y, cols.pt)
             if (i == 3) {
-                plotLines(mark[1], y[1], 'black', lwd = 1.5, lty = 2)
-                text(x = mark[1], y = y[1], adj = c(0.5, -0.2), round(mark[2], 2), srt = 90)
+                addMark <- function(mark, lty = 2, col = "black", adj = -0.2, srt = 270) {
+                    plotLines(mark[1], y[1], col, lwd = 1.5, lty = lty)
+                    text(x = mark[1], y = y[1], col = col,
+                        adj = c(0.5, adj), round(mark[2], 2), srt = srt)
+                }
+                addMark(mark1, 2); addMark(mark2, 3, "white", adj = -0.2, srt = 90)
             }
         }
         forExp(1, cols, limits)        
         forExp(2, cols, limits)      
         forExp(3, dcols, dlimits)
     }
-    mapply(forModel, models, 1:length(models), xs, fireSig)
-
-    legendColBar <- function(xx, yy, dxl, cols, limits, switch = FALSE,
-                             extend_max = TRUE, extend_min = TRUE) {
-
-        ys = seq(yy[1], yy[2], length.out = length(cols) +1)
-        addBox <- function(y1, y2, yi, col) {
-            print(yi)
-            polyFun <- function(x, y) polygon(x, y, col = col, lwd = 2, xpd = TRUE)
-            if (yi == 1 && extend_min) 
-                polyFun(c(xx, mean(xx), xx[1]), c(y2, y2, y1, y2))
-            else if (yi == length(cols) && extend_max) 
-                polyFun(c(xx, mean(xx), xx[1]), c(y1, y1, y2, y1))
-            else polyFun(c(xx, rev(xx), xx[1]), c(y2, y2, y1, y1, y2))
-                 
-        }
-        id = 1:length(cols)
-        if (switch) {
-            id = rev(id)
-            cols = rev(cols)
-            limits = rev(limits)
-        }
-        mapply(addBox, ys[-1], head(ys, -1), id, cols)
-        text(xx[2] + diff(xx) *0.3, head(ys[-1], -1), limits, xpd = NA, adj = 0)
-    }
+    mapply(forModel, models, 1:length(models), xs, fireSig, fireSig_an)
+    
     xx = xrange[2] + diff(xrange) * c(0.017,0.05)
     legendColBar(xx, c(0.5, 8.5), 10, cols, limits, TRUE)
     legendColBar(xx, c(9, 14), 10, dcols, dlimits, TRUE)
