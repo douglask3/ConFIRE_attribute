@@ -173,7 +173,7 @@ cols = c(histOn = '#1b9e77', futrOn26 = '#7570b3', futrOn60 = '#d95f02',
              histRatio = 'black', RCP26Ratio = 'blue', RCP60Ratio = 'red')
 
 
-#outs = lapply(1:14, forRegion)
+outs = lapply(1:14, forRegion)
 
 plot.new()
 legend(lty = 1, col = cols, 'top', names(cols), horiz = TRUE, bty = 'n')
@@ -313,8 +313,8 @@ png("figs/fireGWTs_cal.png", height = 42, width = 10, res = 300, units = 'in')
 dev.off()
 
 forRegion <- function(result, regioName, axes = c(), rcp, tFUN) {
-   
-   
+    #dev.new() 
+    
     plot(c(-0.1, 1), c(-0.1, 1), type = 'n', 
          xaxs = 'i', yaxs = 'i', xaxt = 'n', yaxt = 'n', xlab = '', ylab = '')
        
@@ -336,14 +336,14 @@ forRegion <- function(result, regioName, axes = c(), rcp, tFUN) {
             return()
         }
         mtext(side = 3, line = -2, adj = 0.1, regioName)
-
+        
         labels = c(0.2, 0.5, 1, 1.5, 2, 3, 4)
         labels = c(0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4)
         at = tFUN(labels)
         labels[length(labels)] = '3.5+'
         axisFUN <- function(side) axis(side, at = at, labels = labels)
         lapply(axes, axisFUN)
-labels = c(0.2, 0.5, 1, 1.5, 2, 3, 4)
+        labels = c(0.2, 0.5, 1, 1.5, 2, 3, 4)
         labels = c(0, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4)
         at = tFUN(labels)
         labels[length(labels)] = '3.5+'
@@ -351,6 +351,7 @@ labels = c(0.2, 0.5, 1, 1.5, 2, 3, 4)
         lapply(axes, axisFUN)
         xg = seq(-10, 10, 0.01)
         for (dy in seq(-4, 4, 0.5)) lines(tFUN(xg), tFUN(xg-dy), lty = 4)
+        lines(tFUN(c(3.5, 3.5)), c(-9E9, 9E9));lines(c(-9E9, 9E9), tFUN(c(3.5, 3.5)))
         #forRCP <- function(rcp, pch) {
         
         forModel <- function(mod) {
@@ -361,12 +362,23 @@ labels = c(0.2, 0.5, 1, 1.5, 2, 3, 4)
             points(res[4,], res[5,], pch = 19, cex = 1.45)
             for (cex in seq(1.2, 0.1, -0.1))
                 points(res[4, ], res[5,], col = colsF[res[6,]], pch = 19, cex = cex)
+            test = is.na(res[5,])
+            off = res[6,test]; on = res[7, test];
             
+            pchT = ((res[6,test] == 1 | res[6,test] == 4) & 
+                    (res[7,test] == 1 | res[7, test] == 4)) | 
+                   ((res[6, test] == 2 | res[6, test] == 3) & 
+                    (res[7, test] == 2 | res[7, test] == 3))
+            yexceed = seq(0.9, 1, length.out = sum(test))
+            yexceed = sample(yexceed, sum(test), replace = FALSE)
+            pch = c(4, 19)[pchT+1]
+            points(res[4,test], yexceed, pch = pch, cex = 1.45)
+            points(res[4, test], yexceed,pch = pch, cex = 1.2, col = colsF[res[6,test]])
             return()
         }
         
         mapply(forModel, 1:4)#, c("#1b9e77", "#d95f02", "#b2df8a", "#a6cee3"))
-
+        
 }
 
 tFUN <- function(x) {
