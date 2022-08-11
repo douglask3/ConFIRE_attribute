@@ -138,10 +138,10 @@ plotVar <- function(dat, nme, maskID) {
                 t.test(p1, p2)[[3]]
             }
             sig = sapply(480:length(full), forPeriod)
-            browser()
+            
         }
         mapply(forModel, histRatio, rcp)
-        browser()
+       
     }
     #forRCP(RCP26Ratio)  
     mtext(side = 3, paste(nme, '-', maskID))
