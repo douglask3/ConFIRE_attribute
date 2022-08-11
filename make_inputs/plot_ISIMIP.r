@@ -5,10 +5,11 @@ sourceAllLibs("libs/")
 library(raster)
 sourceAllLibs("../rasterextrafuns/rasterExtras/R/")
 dir = "../ConFIRE_ISIMIP/inputs2/"
-countries = c("Brazil", "Brazil")#, "Malaysia", "Brazil", Paraguay = 'Paraguay')
-extents = list(NULL, c(-52.5, -42.5, -17.5, -2.5))
+countries = c("Brazil", "Brazil", "Brazil")#, "Malaysia", "Brazil", Paraguay = 'Paraguay')
+extents = list(All = NULL, CerradoSq = c(-52.5, -42.5, -17.5, -2.5), Amazon = raster("data/basins.nc")==1)
 
-vars = c("trees", "tas", "soilM_top", "soilM_bottom", "crop", "pas", "totalVeg", "precip", "humid", "cveg", "csoil")
+vars = c("trees", 
+         "tas", "soilM_top", "soilM_bottom", "crop", "pas", "totalVeg", "precip", "humid", "cveg", "csoil")
 areaAv = rep(TRUE, 11)
 annualAv = areaAv#c(TRUE, TRUE, TRUE)
 monthAv = areaAv#c(TRUE, TRUE, TRUE)
@@ -47,7 +48,8 @@ extend_mins = c(FALSE, TRUE, rep(FALSE, 9))
 extend_maxs = c(FALSE, TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, TRUE, TRUE, TRUE, TRUE)
 maxLabs     = list(100, NULL, NULL, NULL, 100, 100, 100, NULL, NULL, NULL, NULL)
 
-forCountry <- function(country, extent, variable, areaA, annualA, monthA, TSannualA,      
+forCountry <- function(country, extent, extentName, 
+                       variable, areaA, annualA, monthA, TSannualA,      
                        scale, shift, cols, limits,
                        extend_min, extend_max, maxLab) {
 
@@ -73,15 +75,20 @@ forCountry <- function(country, extent, variable, areaA, annualA, monthA, TSannu
         tfile = paste("temp/plot_ISIMIP-x", period, yrs, country, variable, 
                       areaA, annualA, monthA, sep = '-')
         if (is.null(extent)) tfile = paste(tfile, ".Rd", sep = '-')
-            else  tfile = paste(c(tfile, extent, ".Rd"), collapse  = '-')        
+            else  tfile = paste(c(tfile, extentName, ".Rd"), collapse  = '-')        
         if (file.exists(tfile)) {load(tfile); return(list(yrs, tss, maps))}
-        dir = paste(dir, country, period, sep = '/')
+        dir = paste(dir, country, period, '',sep = '/')
         files = list.files(dir, recursive = TRUE)
         openMod <- function(file) {
-            dat = brick(paste0(dir, '/', file))
+            dat = dat0 = brick(paste0(dir, '/', file))
             print(nlayers(dat))
             #if (grepl("MIR", file)) browser()
-            if (!is.null(extent)) dat = raster::crop(dat, extent)
+            if (!is.null(extent)) {
+                if (is.raster(extent)) {
+                    extent = raster::resample(extent, dat)
+                    dat = layer.apply(dat, function(i) {i[!extent] = NaN; i})
+                } else dat = raster::crop(dat, extent)
+            }
             areaR = raster::area(dat[[1]], na.rm = TRUE)
             ts = dat * areaR
             ts = apply(ts[], 2, sum, na.rm = TRUE)
@@ -202,11 +209,11 @@ forCountry <- function(country, extent, variable, areaA, annualA, monthA, TSannu
 
 forVar <- function(...) {
     
-    mapply(forCountry, countries, extents, MoreArgs = list(...))
+    mapply(forCountry, countries, extents, names(extents), MoreArgs = list(...))
 
 }
 
-pdf("figs/CountryVarTSMap-withC.pdf", height = 10*1.5, width = 7*1.5)
+pdf("figs/CountryVarTSMap-withC-withAmazon.pdf", height = 10*1.5, width = 7*1.5)
 mapply(forVar, vars, areaAv, annualAv, monthAv, TSannualAv,      
                        scale, shift, cols, limits, 
                        extend_mins, extend_maxs, maxLabs)
