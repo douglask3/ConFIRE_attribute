@@ -22,8 +22,9 @@ variable = "trees"#, 'cveg', 'csoil') #, '
 
 tfile0 = 'temp/degreeEquiv'
 
-openDat <- function(period, experiment, model, variable) 
+openDat <- function(period, experiment, model, variable)    
     brick(paste0(dir, period, experiment, '/', model, '/', variable, '.nc'))
+
 
 
 aa <- function(i, dat, ..., ncount = 11) {
@@ -40,8 +41,10 @@ openAllP <- function(...) {
     if (file.exists(tfile)) return(brick(tfile))
     hist = openDat(historicID, ...)
     futr = openDat(futuresID, ...)
+    
     dat = addLayer(hist, futr)
     datYr = layer.apply(seq(12, nlayers(dat), by = 12), aa, dat, ...)
+    #browser()
     dat = layer.apply(21:nlayers(datYr), aa, datYr, 'running21', ..., ncount = 20)
     dat = dat/dat[[1]]
     dat = writeRaster(dat, file = tfile, overwrite = TRUE)
@@ -52,12 +55,12 @@ openMod <- function(...)
 
 
 dats = lapply(models, openMod, variable = variable)
-#browser()
+
 
 analyseCell <- function(i, dat, gwt, Temp = 1.5, ID) {
     ts1 = as.vector(dat[[1]][i]); ts2 = as.vector(dat[[2]][i])
     if (all(ts1 == 0) && all(ts2 == 0) ) return(rep(NaN, 4))
-
+    
     tgrad  <- function(id, ts) diff(ts[(id-1):id]) > 0
     grad = tgrad(ID, ts1)
     impact = ts1[ID]
@@ -88,8 +91,8 @@ gwts = read.csv(gwts)[-1,]
 
 
 analyseModel <- function(dat, model, Temp = 1.5, switch = FALSE) {
-    if (switch) tfile = paste('outputs/degreeEquiv-switch', model, Temp, '.nc', sep = '-')
-    else tfile = paste('outputs/degreeEquiv', model, Temp, '.nc', sep = '-')
+    if (switch) tfile = paste('outputs/degreeEquiv2-switch', model, Temp, '.nc', sep = '-')
+    else tfile = paste('outputs/degreeEquiv2', model, Temp, '.nc', sep = '-')
     if (file.exists(tfile)) return(brick(tfile))
     mask = !is.na(dat[[1]][[1]])
     gwt = gwts[, grepl(substr(futuresID, 4, 6), names(gwts)) & 
@@ -100,17 +103,18 @@ analyseModel <- function(dat, model, Temp = 1.5, switch = FALSE) {
     ntest = 1000
     analyseGroup <- function(i) {
         print(i/ncells)
-        tfile = paste(tfile0, 'analyseGroup', switch, model, Temp, i, ntest, '.Rd', sep = '-')
-         
-        if (file.exists(tfile)) {load(tfile); return(out)}
+        tfile = paste(tfile0, 'analyseGroup', model, Temp, i, ntest, '.Rd', sep = '-')
+        
+        if (file.exists(tfile) && Temp < 1.1) {load(tfile); return(out)}
         ids = index[i:(min(i+ntest-1, length(index)))]
         out = sapply(ids,analyseCell, dat, 
-                  gwt, Temp = Temp, ID =which.min(abs(gwt - Temp)))
+                  gwt, Temp = Temp, ID = which.min(abs(gwt - Temp)))
         
         save(out, file = tfile)
         out
     }
-    vout = lapply(seq(1, length(index), by = ntest), analyseGroup)
+    vout = lapply(seq(ntest*0+1, length(index), by = ntest), analyseGroup)
+    browser()
     voutAll = do.call(cbind, vout)
     out = dat[[1]][[1:4]]
     out[] = NaN
@@ -118,15 +122,22 @@ analyseModel <- function(dat, model, Temp = 1.5, switch = FALSE) {
     out[index] = t(voutAll)
     fgwt[] = gwt[out[[3]][]]
     fgwt[out[[3]][] == length(gwt)] = -1 
-
-    above = out[[1]] > 1; below = !above; up = out[[2]]; down = !up
-    state[above & up] = 3
-    state[above & down] = 4
-    state[below & up] = 2
-    state[below & down] = 1
     
-    outs = addLayer(out[[1]], state, fgwt)
-    outs = writeRaster(outs, file = tfile)
+    stateFinder <- function(id) {
+        
+        above = out[[1]] > 1; below = !above; up = out[[id]]; down = !up
+        state[above & up] = 3
+        state[above & down] = 4
+        state[below & up] = 2
+        state[below & down] = 1
+         
+        state
+    }
+    
+    state = addLayer(stateFinder(2), stateFinder(4))
+    outs  = addLayer(out[[1]], state, fgwt)
+    
+    outs = writeRaster(outs, file = tfile, overwrite = TRUE)
     return(outs)
 }
 
@@ -135,7 +146,7 @@ forTemp <- function(Temp, ...)
 
 Temps = c(1, 1.5, 2)
 outs = lapply(Temps, forTemp)
-outsF = lapply(Temps, forTemp, switch = TRUE)
+#outsF = lapply(Temps, forTemp, switch = TRUE)
 
 
 ##########
@@ -165,10 +176,12 @@ limsT = limsT[limsT <= (maxT-Temp)]
 colsT = c(make_col_vector(colsT[[1]], limits = limsT[limsT <=0]),
           make_col_vector(colsT[[2]], limits = limsT[limsT >=0]))
 plotForTemp <- function(Temp, out, outF) {
-png(paste0("figs/degreeEquil-", Temp, ".png"), height = 20, width = 12, units = 'in', res = 300)
+png(paste0("figs/degreeEquil-", Temp, ".png"), height = 5, width = 8, units = 'in', res = 300)
 layout(rbind(1:4, 5:8, 9, 10:13, 14:17, 18, 18+matrix(1:20, ncol = 4), 39, 40:43, 44), 
        heights = c(1, 1, 0.3, 1, 1, 0.3, rep(1, 5), 0.3, 1, 0.3))
-par(mar = rep(0, 4), oma = c(0, 2, 2, 0))
+#dev.new()
+layout(cbind(c(1:4, 9), 5:9, 10:14), heights = c(1, 1, 1, 1, 0.3))
+par(mar = rep(0, 4), oma = c(2, 2, 2, 0))
 
 plotImpact <- function(res, name, mttext = "Impact", addModName = TRUE){
     plotStandardMap(res[[1]], colsI, limsI)
@@ -176,26 +189,26 @@ plotImpact <- function(res, name, mttext = "Impact", addModName = TRUE){
     if (name == models[1]) mtext(mttext, side = 2)
 }
 
-mapply(plotImpact, out, models, "Impact fire off")
-mapply(plotImpact, outF, models, "Impact fire on", FALSE)
-StandardLegend(colsI, limsI, out[[1]][[1]])
+#mapply(plotImpact, out, models, "Impact fire off")
+#mapply(plotImpact, outF, models, "Impact fire on", FALSE)
+#StandardLegend(colsI, limsI, out[[1]][[1]])
 
-plotState <- function(res, name, mttext) {
-    plotStandardMap(res[[2]], colsS, seq(1.5, 3.5))
-    if (name == models[1]) mtext(mttext, side = 2)
+plotState <- function(res, name, mttext, id = 2, addModName = TRUE) {
+    plotStandardMap(res[[id]], colsS, seq(1.5, 3.5))
+    if (name == models[1]) mtext(mttext, side = 3)
+    if (addModName) mtext(name, side = 2, line = 0)
 }
 
 mapply(plotState, out, models, "Fire off")
-mapply(plotState, outF, models, "Fire on" )
+mapply(plotState, out, models, "Fire on", 3, FALSE)
 
 plot.new()
-legend('center', horiz = TRUE, pch = 19, col = colsS, 
+legend('center', horiz = TRUE, pch = 19, col = colsS, cex = 1.3,
       c('reducing', 'recovering', 'increasing', 'diminishing'), bty = 'n')
-
 
 plotTemp <- function(res, name) {  
     
-    gwt = res[[3]] 
+    gwt = res[[4]] 
     mask = gwt == -1
     gwt = gwt - Temp
 
@@ -210,15 +223,15 @@ plotTemp <- function(res, name) {
         plotStandardMap(gwt, colsT, limsT)
         plotStandardMap(mask, cols = c("transparent", "#9999aa"), limits = c(0.5), add = TRUE)
           
-        if (name == models[1]) mtext(c('All', 'reducing', 'recovering', 
-                                       'increasing', 'diminishing')[i+1], side = 2)
+        #if (name == models[1]) mtext(c('All', 'reducing', 'recovering', 
+        #                               'increasing', 'diminishing')[i+1], side = 2)
     }
-    lapply(0:4, plotTempState)
+    lapply(0, plotTempState)
 }
 
 mapply( plotTemp, out, models)
-StandardLegend(colsT, limsT, out[[1]][[1]], extend_min = TRUE)
+StandardLegend(colsT, limsT, out[[1]][[1]], extend_min = TRUE, units = '~DEG~C', oneSideLabels = FALSE)
 dev.off()
 }
 
-mapply(plotForTemp, Temps, outs, outsF)
+mapply(plotForTemp, Temps, outs, outs)
