@@ -140,7 +140,7 @@ makeDat <- function(id, dir, years_out, out_dir, mask,  extent, country) {
             #        return(out)                  
             #    }
             #    dat = countryfy(dat)
-            #    save(dat, file =  tfileC)
+            #    save(dat, file =  tfileC)ø
             #}
             gc()
             return(dat)
@@ -148,16 +148,18 @@ makeDat <- function(id, dir, years_out, out_dir, mask,  extent, country) {
         dats = mapply(openVar, fileIDs, varnames)
         
         cover = dats[, 'cover']
+        #browser()
         #if (mod == "MIROC5") browser()
         makeCover <- function(ty) {
             print(ty)
             strsplitFrac <- function(i) strsplit(filename.noPath(i[[1]], TRUE), 'frac')[[1]][2]
             group <- function(i) {
-                ctfile = paste(c(tfile0, 'coverSummed', strsplitFrac,
+                ctfile = paste(c(tfile0, 'coverSummed', strsplitFrac(i),
                                  ty, '.nc'), collapse = '-')
                  
                 if (file.exists(ctfile)) return(brick(ctfile))
                 cv = i[ty]
+                
                 out = cv[[1]]
                 
                 for (i in cv[-1]) 
@@ -172,18 +174,20 @@ makeDat <- function(id, dir, years_out, out_dir, mask,  extent, country) {
                                  strsplitFrac(cover[[1]]), strsplitFrac(cover[[length(cover)]]),
                                  ty, '.nc'), collapse = '-')
             if (file.exists(ctfile)) return(brick(ctfile))
+            
             coverTy = layer.apply(cover, group)
+            
             writeRaster(coverTy, ctfile, overwrite = TRUE)
             return(coverTy)
         }
         
         
         covers = lapply(coverTypes, makeCover)
-
-        writeOut <- function(dat, name) {
+        
+        writeOut <- function(dat, name, grab_c = TRUE) {
             file = paste0(out_dirM,  name, '.nc')
             
-            if (file.exists(file)) return(brick(file))
+            if (file.exists(file) && grab_c) return(brick(file))
             print(file)
             dat = dat[[-1]]
             nl = 12*floor(nlayers(dat)/12)
@@ -201,7 +205,7 @@ makeDat <- function(id, dir, years_out, out_dir, mask,  extent, country) {
 
             out = writeOut(out, file)
         }
-        out = list(covers = mapply(writeOut, covers, names(coverTypes)),
+        out = list(covers = mapply(writeOut, covers, names(coverTypes), grab_c = FALSE),
                    cveg  = var2layerWrite('cveg'),
                    csoil = var2layerWrite('cs_gb', 'csoil'),
                    temp  = var2layerWrite('temp' ),
