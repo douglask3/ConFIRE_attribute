@@ -16,11 +16,11 @@ historicID = "historic"
 futuresID = "RCP6.0"
 
 experiments = c("_off", "_on")
-models = c("GFDL-ESM2M", "HADGEM2-ES", "MIROC5", "IPSL-CM5A-LR")
-
+models = c(HADGEM2 = "HADGEM2-ES", GFDL = "GFDL-ESM2M", MIROC = "MIROC5", 
+            IPSL = "IPSL-CM5A-LR")
 variable = "trees"#, 'cveg', 'csoil') #, '
 
-tfile0 = 'temp/degreeEquiv'
+tfile0 = 'temp2/degreeEquiv'
 
 openDat <- function(period, experiment, model, variable)    
     brick(paste0(dir, period, experiment, '/', model, '/', variable, '.nc'))
@@ -31,6 +31,7 @@ aa <- function(i, dat, ..., ncount = 11) {
     print(i)
     tfile = paste0(c(tfile0, ...,  ncount, i, '.nc'), collapse = '-')
     if (file.exists(tfile)) return(raster(tfile))
+    
     print(tfile)
     out = mean(dat[[(i-ncount):i]])
     writeRaster(out, file = tfile, overwrite = TRUE)
@@ -43,6 +44,7 @@ openAllP <- function(...) {
     futr = openDat(futuresID, ...)
     
     dat = addLayer(hist, futr)
+    
     datYr = layer.apply(seq(12, nlayers(dat), by = 12), aa, dat, ...)
     #browser()
     dat = layer.apply(21:nlayers(datYr), aa, datYr, 'running21', ..., ncount = 20)
@@ -169,18 +171,18 @@ Temp = 2
 #limsT[limsT > 2 & limsT < 3] = 0.5*round(2*limsT[limsT >2 & limsT < 3], 0)
 
 #limsT[limsT > 3] = round(limsT[limsT >3], 0)
-limsT = c(-2, -1, -0.5, -0.2, -0.1, 0, 0.1, 0.2, 0.5, 1, 2)
+limsT = c(-1.2, -1, -0.8, -0.6, -0.4, -0.2, -0.1, 0, 0.1, 0.2, 0.4, 0.6, 0.8, 1, 1.2)
 maxT = min(apply(gwts[,grepl('6.0', names(gwts))], 2, max))
 
 limsT = limsT[limsT <= (maxT-Temp)]
 colsT = c(make_col_vector(colsT[[1]], limits = limsT[limsT <=0]),
           make_col_vector(colsT[[2]], limits = limsT[limsT >=0]))
 plotForTemp <- function(Temp, out, outF) {
-png(paste0("figs/degreeEquil-", Temp, ".png"), height = 5, width = 8, units = 'in', res = 300)
+png(paste0("figs/degreeEquil-", Temp, ".png"), height = 6.5, width = 7.2, units = 'in', res = 300)
 layout(rbind(1:4, 5:8, 9, 10:13, 14:17, 18, 18+matrix(1:20, ncol = 4), 39, 40:43, 44), 
        heights = c(1, 1, 0.3, 1, 1, 0.3, rep(1, 5), 0.3, 1, 0.3))
 #dev.new()
-layout(cbind(c(1:4, 9), 5:9, 10:14), heights = c(1, 1, 1, 1, 0.3))
+layout(cbind(1:5,6:10), heights = c(1, 1, 1, 1, 0.3))
 par(mar = rep(0, 4), oma = c(2, 2, 2, 0))
 
 plotImpact <- function(res, name, mttext = "Impact", addModName = TRUE){
@@ -193,20 +195,30 @@ plotImpact <- function(res, name, mttext = "Impact", addModName = TRUE){
 #mapply(plotImpact, outF, models, "Impact fire on", FALSE)
 #StandardLegend(colsI, limsI, out[[1]][[1]])
 
-plotState <- function(res, name, mttext, id = 2, addModName = TRUE) {
-    plotStandardMap(res[[id]], colsS, seq(1.5, 3.5))
-    if (name == models[1]) mtext(mttext, side = 3)
+plotState <- function(res, name, mttext, id = 2:3, addModName = TRUE) {
+    r = res[[id[1]]]
+    unknown = (res[[id[1]]] ==1 & (res[[id[2]]] == 2 | res[[id[2]]] ==3)) |
+              (res[[id[1]]] ==2 & (res[[id[2]]] == 1 | res[[id[2]]] ==4)) |
+              (res[[id[1]]] ==3 & (res[[id[2]]] == 1 | res[[id[2]]] ==4)) |
+              (res[[id[1]]] ==4 & (res[[id[2]]] == 2 | res[[id[2]]] ==3))
+    r[unknown] = NaN
+    plotStandardMap(r, colsS, seq(1.5, 3.5))
+    plotStandardMap(unknown, cols = c("transparent", "#888888"), limits = c(0.5), add = TRUE)
+        
+    
+    if (name == names(models)[1]) mtext(mttext, side = 3)
     if (addModName) mtext(name, side = 2, line = 0)
+    return(unknown)
 }
 
-mapply(plotState, out, models, "Fire off")
-mapply(plotState, out, models, "Fire on", 3, FALSE)
+unknown = mapply(plotState, out, names(models), "State")
+#mapply(plotState, out, models, "Fire on", 3, FALSE)
 
 plot.new()
-legend('center', horiz = TRUE, pch = 19, col = colsS, cex = 1.3,
+legend('center', ncol = 2, pch = 19, col = colsS, cex = 1.3,
       c('reducing', 'recovering', 'increasing', 'diminishing'), bty = 'n')
 
-plotTemp <- function(res, name) {  
+plotTemp <- function(res, unknown, name) {  
     
     gwt = res[[4]] 
     mask = gwt == -1
@@ -221,17 +233,21 @@ plotTemp <- function(res, name) {
         }
         
         plotStandardMap(gwt, colsT, limsT)
-        plotStandardMap(mask, cols = c("transparent", "#9999aa"), limits = c(0.5), add = TRUE)
-          
+        plotStandardMap(mask, cols = c("transparent", "#000099"), limits = c(0.5), add = TRUE)
+        plotStandardMap(unknown, cols = c("transparent", "#888888"), limits = c(0.5), add = TRUE)
+        if (name == models[1]) mtext("Equivalent Temperature", side = 3)
         #if (name == models[1]) mtext(c('All', 'reducing', 'recovering', 
         #                               'increasing', 'diminishing')[i+1], side = 2)
     }
     lapply(0, plotTempState)
 }
 
-mapply( plotTemp, out, models)
+mapply( plotTemp, out, unknown, models)
 StandardLegend(colsT, limsT, out[[1]][[1]], extend_min = TRUE, units = '~DEG~C', oneSideLabels = FALSE)
 dev.off()
 }
 
 mapply(plotForTemp, Temps, outs, outs)
+
+
+
