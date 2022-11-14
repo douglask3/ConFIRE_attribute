@@ -195,7 +195,7 @@ plotImpact <- function(res, name, mttext = "Impact", addModName = TRUE){
 #mapply(plotImpact, outF, models, "Impact fire on", FALSE)
 #StandardLegend(colsI, limsI, out[[1]][[1]])
 
-plotState <- function(res, name, mttext, id = 2:3, addModName = TRUE) {
+plotState <- function(res, name, mttext, id = 2:3, addModName = TRUE, letter = '') {
     r = res[[id[1]]]
     unknown = (res[[id[1]]] ==1 & (res[[id[2]]] == 2 | res[[id[2]]] ==3)) |
               (res[[id[1]]] ==2 & (res[[id[2]]] == 1 | res[[id[2]]] ==4)) |
@@ -204,21 +204,21 @@ plotState <- function(res, name, mttext, id = 2:3, addModName = TRUE) {
     r[unknown] = NaN
     plotStandardMap(r, colsS, seq(1.5, 3.5))
     plotStandardMap(unknown, cols = c("transparent", "#888888"), limits = c(0.5), add = TRUE)
-        
+    mtext(side = 3, adj = 0.1, letter)       
     
     if (name == names(models)[1]) mtext(mttext, side = 3)
     if (addModName) mtext(name, side = 2, line = 0)
     return(unknown)
 }
 
-unknown = mapply(plotState, out, names(models), "State")
+unknown = mapply(plotState, out, names(models), "State", letter = letters[1:length(out)])
 #mapply(plotState, out, models, "Fire on", 3, FALSE)
 
 plot.new()
-legend('center', ncol = 2, pch = 19, col = colsS, cex = 1.3,
+legend('center', ncol = 2, pch = 15, col = colsS, pt.cex = 2, cex = 1.15,
       c('reducing', 'recovering', 'increasing', 'diminishing'), bty = 'n')
 
-plotTemp <- function(res, unknown, name) {  
+plotTemp <- function(res, unknown, name, letter = '') {  
     
     gwt = res[[4]] 
     mask = gwt == -1
@@ -234,16 +234,22 @@ plotTemp <- function(res, unknown, name) {
         
         plotStandardMap(gwt, colsT, limsT)
         plotStandardMap(mask, cols = c("transparent", "#000099"), limits = c(0.5), add = TRUE)
-        plotStandardMap(unknown, cols = c("transparent", "#888888"), limits = c(0.5), add = TRUE)
+        plotStandardMap(unknown, cols = c("transparent", "#888888"), limits = c(0.5),
+                        add = TRUE)
         if (name == models[1]) mtext("Equivalent Temperature", side = 3)
+        mtext(side = 3, adj = 0.1, letter)  
         #if (name == models[1]) mtext(c('All', 'reducing', 'recovering', 
         #                               'increasing', 'diminishing')[i+1], side = 2)
     }
     lapply(0, plotTempState)
 }
 
-mapply( plotTemp, out, unknown, models)
-StandardLegend(colsT, limsT, out[[1]][[1]], extend_min = TRUE, units = '~DEG~C', oneSideLabels = FALSE)
+mapply( plotTemp, out, unknown, models, 
+                 letter = letters[(1+length(out)):(2*length(out))])
+
+StandardLegend(colsT, limsT, out[[1]][[1]], extend_min = TRUE, units = '~DEG~C', oneSideLabels = FALSE, rightx = 0.8)
+points(x = 0.9, y = 0.42, pch = 15, col = '#000099', cex = 2)
+text(x = 0.9, y = 0.42, adj = c(0.5, 1.2), 'Beyond\nrun', xpd = NA, cex = 1.15)
 dev.off()
 }
 
