@@ -13,7 +13,7 @@ graphics.off()
 
 dat = read.csv("data/Tas_vs_year.xlsx - NBP.csv", header = FALSE, stringsAsFactors = FALSE)#[,-1]
 
-models = c("HadGEM2-ES" = "H", "GFDL" = "G", "IPSL" = "I", "MIROC" = "M")
+models = c("HadGEM2-ES" = "H", "GFDL" = "G", "MIROC" = "M", "IPSL" = "I")
 
 regions = c("Global", "BONA", "TENA", "CEAM", "NHSA", "SHSA", "EURO", "MIDE", 
                       "NHAF", "SHAF", "BOAS", "CEAS", "SEAS", "EQAS", "AUST")
@@ -36,14 +36,16 @@ cols2 = c('#c7eae5','#80cdc1','#35978f','#01665e','#003c30')
 
 years = as.numeric(dat[2,-1])
 years[1] = years[2] - 1
-forRegions <- function(region, Rid, yearsTest = TRUE, stripes = FALSE) {
+forRegions <- function(region, Rid, yearsTest = TRUE, stripes = FALSE, letter = '') {
+    
     if (region == "Global") idR = which(dat[,1] == "GlobTemp")
     else idR = which(dat[,2] == region)
     
     if (yearsTest) xs = lapply(temps, function(i) years)
     else xs = temps#lapply(temps, function(i)  i[tyrID,-1])
     xrange = range(unlist(xs))
-    
+    if (letter == '') mt = region else mt = paste0(letter, ') ', region)
+
     modelNBP <- function(model, accTest) {
         idM = which(as.character(dat[,2]) == model)
         id = idR[idR > idM][1]
@@ -118,7 +120,8 @@ forRegions <- function(region, Rid, yearsTest = TRUE, stripes = FALSE) {
         yrange = yrange[!is.na(yrange) & !is.infinite(yrange)]
         yrange = range(yrange)
         plot(range(test_temps), yrange, 
-              axes = FALSE, xlab = '', ylab = '', type = 'n')    
+              axes = FALSE, xlab = '', ylab = '', type = 'n')   
+         
         axis(2)
         axis(1)
         grid()
@@ -130,7 +133,8 @@ forRegions <- function(region, Rid, yearsTest = TRUE, stripes = FALSE) {
             mapply(addPoly, rev(bins), rev(c('blue', 'red')))
         }
         lines(c(-9E9, 9E9), c(0, 0), lty = 2, lwd = 2)
-        mtext(side = 3, adj = 0.1, region, line = -1.7)
+       
+        mtext(side = 3, adj = 0.1, mt, line = -1.7)
         
         return()
     }
@@ -141,12 +145,25 @@ forRegions <- function(region, Rid, yearsTest = TRUE, stripes = FALSE) {
     #axis(1)
     
     
-    findColsLims <- function(dats) {
-        limits = sort(c(0, quantile(dats, seq(0.1, 0.9, 0.1))))
+    findColsLims <- function(dats, symm = FALSE) {
+        
+       
+        if (symm) {
+            limits = sort(c(0, quantile(dats, seq(0.1, 0.9, 0.2))))
+            #test = limits < 0
+            limits = unique(limits)
+            #browser()
+            limits = sort(c(-limits, limits))
+            #if (abs(limits[1]) > head(limits, 1)) 
+            #    limits = c(limits[test], -rev(limits[test]))
+            #else
+            #    limits = c(-rev(limits[!test]), limits[!test])
+        } else limits = sort(c(0, quantile(dats, seq(0.1, 0.9, 0.1))))
+        
         limits = unique(signif(limits, 1))
         limits[limits == -0.09] = -0.1
         limits = limits[limits != -0.0003]
- 
+        if (symm) limits = limits[limits != 0]
         colsA = colsB = c()
         if (any(limits < 0))
             colsA = make_col_vector(cols1, ncols = 1+sum(limits <= 0))
@@ -156,10 +173,11 @@ forRegions <- function(region, Rid, yearsTest = TRUE, stripes = FALSE) {
         if ((length(cols) -2) == length(limits)) cols = c(colsA, colsB[-1])
         if ((length(cols) -3) == length(limits)) cols = c(head(colsA, -1), colsB[-1])
         if ((length(cols) -1) != length(limits)) browser()
+        
         return(list(limits, cols))
     }
     c(limits, cols) := findColsLims(unlist(nbps))
-    c(dlimits, dcols) := findColsLims(unlist(dnps))
+    c(dlimits, dcols) := findColsLims(unlist(dnps), TRUE)
     
     forModel <- function(model, mi, x, mark1, mark2) {
         idM = which(dat[,2] == model)
@@ -171,12 +189,16 @@ forRegions <- function(region, Rid, yearsTest = TRUE, stripes = FALSE) {
             y = rep(y, length(x))
             if (i == 3) col = as.numeric(nbp[2,-1]) - as.numeric(nbp[1,-1])
             else col = as.numeric(nbp[i,-1])
+            if (length(col) == (length(x)-1)) col =c(0, col)
             col = cut_results(col, limits) 
             
             plotLines <- function(x, y, col, lwd = 3, ...) 
                 lines(c(x, x), y + c(-0.5, 0.5), col = col, lend = 1, lwd = lwd, ...)
-            cols.pt = cols[col]  
+            cols.pt = cols[col] 
+            
             mapply(plotLines, x, y, cols.pt)
+            if (region == regions[1] && i == 1) text(x = x[7], y = y[7], model, cex = 1.2, font = 2)
+            
             if (i == 3) {
                 addMark <- function(mark, lty = 2, col = "black", adj = -0.2, srt = 270) {
                     plotLines(mark[1], y[1], col, lwd = 1.5, lty = lty)
@@ -191,6 +213,7 @@ forRegions <- function(region, Rid, yearsTest = TRUE, stripes = FALSE) {
         forExp(1, cols, limits)        
         forExp(2, cols, limits)      
         forExp(3, dcols, dlimits)
+        
     }
     
     mapply(forModel, models, 1:length(models), xs, fireSig, fireSig_an)
@@ -198,7 +221,7 @@ forRegions <- function(region, Rid, yearsTest = TRUE, stripes = FALSE) {
     xx = xrange[2] + diff(xrange) * c(0.017,0.05)
     legendColBar(xx, c(0.5, 8.5), 10, cols, limits, TRUE)
     legendColBar(xx, c(9, 14), 10, dcols, dlimits, TRUE)
-    mtext(side = 3, adj = 0.1, region, line = -1.7)
+    mtext(side = 3, adj = 0.1, mt, line = -1.7)
     if (Rid %% 4 == 1) {
         textSt <- function(y, txt) 
             text(x = xrange[1] - diff(xrange)*0.04, y = y , txt, srt = 90, cex = 1.3, xpd = NA)
@@ -240,28 +263,48 @@ forRegions <- function(region, Rid, yearsTest = TRUE, stripes = FALSE) {
     #if (Rid > (length(regions) -4)) axis(1)
 }
 
-figname <- function(nme) paste0("figs/", nme, "-accu_", accumulative, ".png")
-png(figname("NBP_vs_temp"), res = 300, units = 'in', height = 12, width = 12)
-par(mfrow = c(4, 4), mar = c(1.5, 1.5, 0, 1.5), oma = c(2.75, 3.0, 0.25, 0.0))
-mapply(forRegions, regions, 1:length(regions), TRUE)
-mtext.units(outer = TRUE, side = 1, '~DELTA~ T (~DEG~C)', line = 1.25)
-mtext.units(outer = TRUE, side = 2, 'NBP (PgC ~yr-1~)', line = 0.75)
-plot.new()
-col = c("blue", "red")
-par(mar = c(1, 4, 7, 1))
-for (i in 1:6) {
-legend("topleft", c("Without fire", "With fire"), lwd = 1.5, bty = 'n',
-       col = make.transparent(col, 0.6))
-legend("topleft", c("Without fire", "With fire"), lwd = 10, bty = 'n',
-       col = make.transparent(col, 0.95))
+plotTS <- function(xadj = 0.5) {
+    mapply(forRegions, regions, 1:length(regions), TRUE, letter = letters[1:length(regions)])
+    mtext.units(outer = TRUE, side = 1, '~DELTA~ T (~DEG~C)', line = 1.25, adj = xadj)
+    mtext.units(outer = TRUE, side = 2, 'NBP (PgC ~yr-1~)', line = 0.75)
+    plot.new()
+    col = c("blue", "red")
+    par(mar = c(1, 4, 7, 1))
+    for (i in 1:6) {
+        legend("topleft", c("Without fire", "With fire"), lwd = 1.5, bty = 'n',
+              col = make.transparent(col, 0.6))
+        legend("topleft", c("Without fire", "With fire"), lwd = 10, bty = 'n',
+               col = make.transparent(col, 0.95))
+    }
 }
+figname <- function(nme) paste0("figs/", nme, "-accu_", accumulative, ".png")
+
+
+
+png(figname("NBPstripes-combined"), res = 300, units = 'in', height = 2*6.69291*0.67, width = 2*7.08661)
+    par(mar = c(1.5, 1.5, 0.5, 0.25), oma = c(2.2, 2.7, 1, 1.5))
+    layout(cbind(t(matrix(1:16, ncol = 4)), rbind(17:18, 17:18, 19:20, 19:20)),
+           widths = c(1,1,1,1, 1.5, 1.5))
+    plotTS(xadj = 2.5/7)
+    subRegions = c(1,3, 5, 6)
+    par(mar = c(1.5, 1.5, 0.5, 0.25))
+    accumulative = TRUE
+    mapply(forRegions, regions[subRegions], subRegions, TRUE, TRUE, letter = letters[16:19])
 dev.off()
 
+accumulative = FALSE
+png(figname("NBP_vs_temp"), res = 300, units = 'in', height = 12, width = 12)
+    par(mfrow = c(4, 4), mar = c(1.5, 1.5, 0, 1.5), oma = c(2.75, 3.0, 0.25, 0.0))
+    plotTS()
+dev.off()
 
-
+accumulative = TRUE
 png(figname("NBPstripes"), res = 300, units = 'in', height = 14, width = 12)
-par(mfrow = c(4, 4), mar = c(1.5, 1.5, 0, 1.5), oma = c(1.5, 1, 1, 1.5))
-outs = mapply(forRegions, regions, 1:length(regions), TRUE, TRUE)
-write.csv(t(outs), file = 'temp_yrs.csv')
+    par(mfrow = c(4, 4), mar = c(1.5, 1.5, 0, 1.5), oma = c(1.5, 1, 1, 1.5))
+
+    outs = mapply(forRegions, regions, 1:length(regions), TRUE, TRUE, 
+                  letter = letters[1:length(regions)])
+    write.csv(t(outs), file = 'temp_yrs.csv')
 
 dev.off()
+
