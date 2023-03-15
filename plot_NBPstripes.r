@@ -53,7 +53,7 @@ forRegions <- function(region, Rid, yearsTest = TRUE, stripes = FALSE, letter = 
         out = apply(dat[id+(2:1), -1], 2, as.numeric)
         if (accTest) {
             out = t(apply(out, 1, cumsum))
-            for (i in 1:2) out[i,] = out[i,] - out[i, years == 2008]
+            for (i in 1:2) out[i,] = out[i,] - out[i, years == 1861]
         }
         return(out)
     }
@@ -219,8 +219,8 @@ forRegions <- function(region, Rid, yearsTest = TRUE, stripes = FALSE, letter = 
     mapply(forModel, models, 1:length(models), xs, fireSig, fireSig_an)
     
     xx = xrange[2] + diff(xrange) * c(0.017,0.05)
-    legendColBar(xx, c(0.5, 8.5), 10, cols, limits, TRUE)
-    legendColBar(xx, c(9, 14), 10, dcols, dlimits, TRUE)
+    legendColBar(xx, c(0.5, 8.5), cols = cols, limits = limits, add = TRUE, adj = 0)
+    legendColBar(xx, c(9, 14), cols = dcols, limits = dlimits, add = TRUE, adj = 0)
     mtext(side = 3, adj = 0.1, mt, line = -1.7)
     if (Rid %% 4 == 1) {
         textSt <- function(y, txt) 
