@@ -17,7 +17,7 @@ openGSWP3 <- function(yr) {
     return(dat[[which(test)]])
 }
 
-#gswp3 = layer.apply(gswp3_years, openGSWP3)
+
 nlperfile = 100
 
 sumLayers <- function(i) {
@@ -30,11 +30,12 @@ sumLayers <- function(i) {
 
 }
 
-#gswp3i = layer.apply(seq(1, nlayers(gswp3), by = nlperfile), sumLayers)
-#gswp3j = sum(gswp3i)/nlayers(gswp3)
-
-#gswp3j = gswp3j*60*60*24
-
+if (!exists('gswp3j')) {
+    gswp3 = layer.apply(gswp3_years, openGSWP3)
+    gswp3i = layer.apply(seq(1, nlayers(gswp3), by = nlperfile), sumLayers)
+    gswp3j = sum(gswp3i)/nlayers(gswp3)
+    gswp3j = gswp3j*60*60*24
+}
 
 dir = '../ConFIRE_ISIMIP/INFERNOonOff/Global/'
 
@@ -49,7 +50,7 @@ vars = c("Pr" = "precip", "SW" = "sw_down", "T" = "temp",
 scales = c(60*60*24*30, 1, 1, 1, 1)
 shifts = c(0, 0, -273.15, 0, 0)
 
-units = c("mm", "W ~m-2~", "~DEG~C", "???", "gC ~m-2~")
+units = c("mm/month", "W ~m-2~", "~DEG~C", "???", "gC ~m-2~")
 sides = c(1, 3, 3, 1, 1)
 
 mask = raster("data/basins.nc")==1
@@ -101,7 +102,7 @@ par(mar = rep(0, 4), oma = c(2, 1, 0, 0))
 cols = c('#ffffd9','#edf8b1','#c7e9b4','#7fcdbb','#41b6c4','#1d91c0','#225ea8','#253494','#081d58')
 dcols = c('#8c510a','#bf812d','#dfc27d','#f6e8c3','#f5f5f5','#c7eae5','#80cdc1','#35978f','#01665e')
 dlimits = c(-1, -0.5, -0.2, -0.1, -0.05, -0.02, -0.01, 0.01, 0.02, 0.05, 0.1, 0.20, 0.5, 1)
-limits = c(0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10)
+limits = c(0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 4, 6)
 gswp3j = raster::resample(gswp3j, prDat[[1]])
 gswp3j[is.na(prDat[[1]])] =  NaN
 
@@ -112,11 +113,11 @@ plotMap <- function(r, txt, cols, limits) {
 plotMap(gswp3j, "GSWP3", cols, limits)
 
 mapply(plotMap, prDat, Models, MoreArgs = list(cols, limits))
-StandardLegend(cols, limits, gswp3j)
+StandardLegend(cols, limits, gswp3j, units = 'm/~m2~')
 
 mapply(plotMap, lapply(prDat, '-', gswp3j), rep('', length(Models)), 
         MoreArgs = list(dcols, dlimits))
-StandardLegend(dcols, dlimits, gswp3j, extend_min = TRUE, oneSideLabels = FALSE)
+StandardLegend(dcols, dlimits, gswp3j, extend_min = TRUE, oneSideLabels = FALSE, units = 'm/~m2~')
 
 dev.off()
 
