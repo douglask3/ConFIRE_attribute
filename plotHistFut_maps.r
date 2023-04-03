@@ -39,7 +39,8 @@ obsL = (obs)
 OpenPlotMap <- function(model, period, cols, limits, dcols = NULL, dlimits = NULL, dat0 = NULL,
                     anomolise = NULL, pnew = TRUE) {
     file = paste(dir, model, period, "fullPost.nc", sep = '/')
-    file = paste(dir, model, period, "model_summary-50.nc", sep = '/')
+    file = paste(dir, model, period, "model_summary-10.nc", sep = '/')
+
     if (!file.exists(file)) file = paste(dir, model, period, "model_summary-10.nc", sep = '/')
     dat = brick(file, varname = variable)[[c(16, 50, 84)]]
     
@@ -179,21 +180,22 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
                         limits = seq(1.5, 4.5))
         legend('bottomleft', col = colsSigs, pch = 19, pt.cex = 2, legend = c('Sig. fire +', '\t climate', '\t RCP', '\t All - Increase', '\t All - Decrease'), bty = 'n')
         dev.off()
-
+        
         out[] = NaN
         out[RCPs[[2]] >  0.9 & RCPs[[1]] <  0.9] = 1
         out[RCPs[[2]] <  0.9 & RCPs[[1]] >  0.9] = 2
         out[RCPs[[2]] < -0.9 & RCPs[[1]] > -0.9] = 3
         out[RCPs[[2]] > -0.9 & RCPs[[1]] < -0.9] = 4
      
-        png("figs/Mitigation.png", height = 5, width = 7.2, res = 300, units = 'in')  
-        colsSigs = c('#ca0020', '#92c5de', '#f4a582', '#0571b0')
-        plotStandardMap(out, readyCut = TRUE, cols = colsSigs,
-                        limits = seq(1.5, 4.5))
-        legend('bottomleft', col = colsSigs, pch = 19, pt.cex = 2, legend = c('Sig. fire +', '\t climate', '\t RCP', '\t All - Increase', '\t All - Decrease'), bty = 'n')
-        dev.off()
+        
+        #png("figs/Mitigation.png", height = 5, width = 7.2, res = 300, units = 'in')  
+        #colsSigs = c('#ca0020', '#92c5de', '#f4a582', '#0571b0')
+        #plotStandardMap(out, readyCut = TRUE, cols = colsSigs,
+        ##                limits = seq(1.5, 4.5))
+        #legend('bottomleft', col = colsSigs, pch = 19, pt.cex = 2, legend = c('Sig. fire +', '\t climate', '\t RCP', '\t All - Increase', '\t All - Decrease'), bty = 'n')
+        #dev.off()
 
-        browser()         
+               
 #browser() 
         fname0  = fname
         fname = paste0(fname, "anomIs_", anomolise, "signifChange", signify, "_Ymaps")
@@ -205,15 +207,15 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
             lapply(models, OpenPlotMap, periods[1], cols, limits,
                    anomolise = datA, pnew = FALSE)
             
-            StanrdardLegend.new( cols,  limits, dat0[[1]])
+            #StanrdardLegend( cols,  limits, dat0[[1]])
             pvsp = lapply(1:length(pvs[[1]]), function(i) lapply(pvs, function(j) 100*j[[i]]))
            
             lapply(pvsp, function(i)
                         lapply(i, plotStandardMap, cols = dcols, limits = sdlimits))           
             mtext(outer = TRUE, "RCP2.6", adj = 0.5)
             mtext(outer = TRUE, "RCP8.0", adj = 0.85)   
-            StanrdardLegend.new(dcols, sdlimits, pvsp[[1]][[1]], 
-                                extend_min = TRUE, extend_max = TRUE)
+            #StanrdardLegend.new(dcols, sdlimits, pvsp[[1]][[1]], 
+            #                    extend_min = TRUE, extend_max = TRUE)
         dev.off()
     }  
     
@@ -324,8 +326,8 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
             maxLab = NULL
         }
         
-        StanrdardLegend.new(cols,  limits, dat0[[1]], extend_max = extend_max, maxLab = maxLab, 
-                  units = '%')
+        #StanrdardLegend.new(cols,  limits, dat0[[1]], extend_max = extend_max, maxLab = maxLab, 
+       #           units = '%')
         
         mapply(triangulaise, datP, pval = pvsp, c(F, T), c("RCP2.6", "RCP6.0"),
               MoreArgs = list(dlimits = dlimits))

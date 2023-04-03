@@ -55,7 +55,7 @@ plotStandardMap <- function(r, cols, limits, e = NULL, add_legend = FALSE,
         r[r>9E9] = NaN
         if (!is.null(e)) e[is.na(r)] = NaN
         mask = raster('data/seamask.nc')
-    
+        
         r[mask != 2] = NaN
         if(!is.null(e)) e[mask != 2] = NaN
     }

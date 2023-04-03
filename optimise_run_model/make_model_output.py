@@ -65,13 +65,14 @@ def newCubes3D(variable, step, eg_cube_in, dimname = 'model_level_number', minV 
 ## input info ##
 ################
 
-dir = "../ConFIRE_ISIMIP/inputs2/"
-model_names = os.listdir(dir)
+dir = "/data/users/dkelley/ConFIRE_ISIMIP/inputs3/Global/"
 
-model_names = [model_names[3]]
-experiments = os.listdir(dir + model_names[0])
-browser()
-experiments = [experiments[0]]
+experiments = os.listdir(dir)
+
+#model_names = [model_names[3]]
+model_names = os.listdir(dir + experiments[0])
+
+#experiments = [experiments[0]]
 files = {'soilwMax'           : 'soil12.nc',
          'shallow_soilw'      : 'soilM_top.nc',
          'deep_soilw'         : 'soilM_bottom.nc',
@@ -95,7 +96,7 @@ def loadInputsParams(model, experiment):
     input_data = {}
     for key, file in files.items():
         try:
-            data = iris.load_cube(dir + model + '/' + experiment + '/' + file)
+            data = iris.load_cube(dir + experiment + '/' + model + '/' + file)
         except:
             browser()
         input_data[key] = data
@@ -542,6 +543,7 @@ def bootModel(input, model, experiment):
     
     for i in range(0, n_posterior, ngap):
         outFile = output_diri + 'sample_no_' + str(i) +'.nc'
+        browser()
         if os.path.isfile(outFile):
             cubes = iris.load(outFile)
         else:          
