@@ -2,8 +2,9 @@
 ## setup ##
 ###########
 library(raster)
-library(rasterExtras)
-library(gitBasedProjects)
+source("../gitProjectExtras/gitBasedProjects/R/sourceAllLibs.r")
+sourceAllLibs("../gitProjectExtras/gitBasedProjects/R/")
+sourceAllLibs("../rasterextrafuns/")
 library(ncdf4)
 sourceAllLibs("libs/")
 graphics.off()
@@ -11,9 +12,9 @@ graphics.off()
 ############
 ## params ##
 ############
-dir = 'outputs/sampled_posterior_ConFire_ISIMIP_solutions/attempt3/'
+dir = '../ConFIRE_ISIMIP/outputs/sampled_posterior_ConFire_ISIMIP_solutions/attempt4-full/'
 models = c("GFDL-ESM2M", "HADGEM2-ES", "MIROC5", "IPSL-CM5A-LR")
-periods = c("historic", "RCP2.6", "RCP6.0")
+periods = c("historic", "RCP2.6_2090s", "RCP6.0_2090s")
 variable = "burnt_area_mean"
 
 limits =  c(0,1, 2, 5, 10, 20, 40)
@@ -25,19 +26,21 @@ dcols = rev(c('#a50026','#d73027','#f46d43','#fdae61','#fee090','#ffffbf','#e0f3
 
 sc = 12 * 100
 
-obs_file = "data/ISIMIP_data2/burnt_area_GFED4sObs.nc"
+obs_file = "../jules_benchmarking/data/GFED4s_burnt_area.nc"
 
 
 ##########
 ## Open ##
 ##########
-obs = mean(brick(obs_file))
+egRaster = raster('../ConFIRE_ISIMIP/outputs/sampled_posterior_ConFire_ISIMIP_solutions/attempt4-full/HADGEM2-ES/historic/sample_no_0.nc')
+obs = raster::resample(mean(brick(obs_file)), egRaster)
 obsL = (obs)
 
 OpenPlotMap <- function(model, period, cols, limits, dcols = NULL, dlimits = NULL, dat0 = NULL,
                     anomolise = NULL, pnew = TRUE) {
     file = paste(dir, model, period, "fullPost.nc", sep = '/')
-    file = paste(dir, model, period, "model_summary.nc", sep = '/')
+    file = paste(dir, model, period, "model_summary-50.nc", sep = '/')
+    if (!file.exists(file)) file = paste(dir, model, period, "model_summary-10.nc", sep = '/')
     dat = brick(file, varname = variable)[[c(16, 50, 84)]]
     
     if (!is.null(anomolise)) 
@@ -84,8 +87,8 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
         datP = lapply(periods[2:3], function(p)
                     mapply(OpenPlotMap, models, dat0 = dat0, anomolise = datA,
                     MoreArgs = list(p, cols, limits, dcols, dlimits)))
-        StanrdardLegend.new( cols,  limits, dat0[[1]])
-        StanrdardLegend.new(dcols, dlimits, datP[[1]][[1]],
+        StandardLegend( cols,  limits, dat0[[1]])
+        StandardLegend(dcols, dlimits, datP[[1]][[1]],
                             extend_min = TRUE, extend_max = TRUE)       
             
     dev.off.gitWatermark()
