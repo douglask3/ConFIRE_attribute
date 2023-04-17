@@ -14,7 +14,8 @@ graphics.off()
 ############
 dir = '../ConFIRE_ISIMIP/outputs/sampled_posterior_ConFire_ISIMIP_solutions/attempt4-full/'
 models = c("GFDL-ESM2M", "HADGEM2-ES", "MIROC5", "IPSL-CM5A-LR")
-periods = c("historic", "RCP2.6_2090s", "RCP6.0_2090s")
+#periods = c("historic", "RCP2.6_2020s", "RCP6.0_2020s")
+decades = c("2010s", "2020s", "2040s", "2090s")
 variable = "burnt_area_mean"
 
 limits =  c(0,1, 2, 5, 10, 20, 40)
@@ -28,7 +29,10 @@ sc = 12 * 100
 
 obs_file = "../jules_benchmarking/data/GFED4s_burnt_area.nc"
 
+forDecade <- function(decade) {
+variable <<- "burnt_area_mean"
 
+periods = c("historic", paste0(c("RCP2.6_", "RCP6.0_"), decade))
 ##########
 ## Open ##
 ##########
@@ -71,7 +75,7 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
     #######################
     ## open plot all map ##
     #######################
-    pdf(paste0("figs/", fname, "anomIs_", anomolise, "_Ymaps.pdf"),
+    pdf(paste0("figs/", fname, "anomIs_", anomolise, periods[2], periods[3], "_Ymaps.pdf"),
         height = 10, width = 7.2)#, units = 'in',res  = 300)
         layout(rbind(matrix(1:(6*length(models)), ncol = 3), (6*length(models)) + c(1, 2, 2)))
         par(mar = rep(0, 4), oma = c(0, 2, 2, 0))
@@ -117,8 +121,12 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
             out = h
             #h = addLayer(h - error*1.5, h + error*1.5)
             signifP <- function(pid) {
-                #### This bit changes when full model post is done 
-                temp_file = paste("temp/pvs3", mid,  pid, sce,anomolise,fname,'.nc', sep = '-') 
+                #### This bit changes when full model post is done
+                 
+                temp_file = paste0("outputs/", models[mid], '/')
+                makeDir(temp_file)
+                temp_file = paste(temp_file,  'pvs-', periods[1+pid], 
+                                  sce,c('', 'Anomolie')[1+anomolise],fname,'.nc', sep = '-') 
                 print(temp_file) 
                 if (file.exists(temp_file)) return(raster(temp_file))
                 #ft = FUN((datP[[pid]][[mid]][[2]]+dat0[[mid]][[2]]*sc)/sc)
@@ -198,8 +206,10 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
                
 #browser() 
         fname0  = fname
-        fname = paste0(fname, "anomIs_", anomolise, "signifChange", signify, "_Ymaps")
-        pdf(paste0("figs/", fname, "pdf"), height = 5, width = 7.2)#, units = 'in',res  = 300)
+        fname = paste0(fname, "anomIs_", c('', 'Anomolie')[1+anomolise], "signifChange", 
+                       signify, "_Ymaps")
+        pdf(paste0("figs/", fname, periods[2], periods[3], "pdf"), 
+            height = 5, width = 7.2)#, units = 'in',res  = 300)
          
 
             layout(cbind(1:5, c(6:9, 14), c(10:13,  14)), height = c(1,1, 1, 1, 0.5))
@@ -207,15 +217,15 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
             lapply(models, OpenPlotMap, periods[1], cols, limits,
                    anomolise = datA, pnew = FALSE)
             
-            #StanrdardLegend( cols,  limits, dat0[[1]])
+            StandardLegend( cols,  limits, dat0[[1]])
             pvsp = lapply(1:length(pvs[[1]]), function(i) lapply(pvs, function(j) 100*j[[i]]))
            
             lapply(pvsp, function(i)
                         lapply(i, plotStandardMap, cols = dcols, limits = sdlimits))           
             mtext(outer = TRUE, "RCP2.6", adj = 0.5)
             mtext(outer = TRUE, "RCP8.0", adj = 0.85)   
-            #StanrdardLegend.new(dcols, sdlimits, pvsp[[1]][[1]], 
-            #                    extend_min = TRUE, extend_max = TRUE)
+            StandardLegend(dcols, sdlimits, pvsp[[1]][[1]], 
+                                extend_min = TRUE, extend_max = TRUE)
         dev.off()
     }  
     
@@ -224,7 +234,8 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
             if (nlayers(p[[1]])>1) q = layer.apply(p, function(q) q[[i]]) else q = p
             P = mean(layer.apply(q, function(i) {i[i<0] = 0; i}))
             N = abs(mean(layer.apply(q, function(i) {i[i>0] = 0; i})))
-            fout = paste0("outputs/", fnameP,'_',lab, '.nc')
+            makeDir("outputs/ensemble/")
+            fout = paste0("outputs/ensemble/", fnameP,'_',lab, '.nc')
             writeRaster.gitInfo(addLayer(P, N), file = fout, overwrite = TRUE)
             
             PNcols = make_col_vector(dcols, ncols = length( dlimits)+1)
@@ -306,7 +317,7 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
                             r/max.raster(r0[[1]], na.rm = T), rs, dat0))
         dat0 = lapply(dat0, function(r) r/max.raster(r[[1]], na.rm = T))
     }
-    fnameP = paste0(fname, "anomIs_", anomolise, "_CXmaps")
+    fnameP = paste0(fname, "anomIs_", c('', 'Anomolie')[1+anomolise], periods[2], periods[3], "_CXmaps")
     pdf(paste0("figs/", fnameP, ".pdf"),
         height = 10, width = 7.2)#, units = 'in',res  = 300)
         layout(rbind(1, 2, 3, 4, c(5, 4), c(5, 5), 6), heights = c(1, 0.3, 1, 0.58, 0.42, 0.44, 0.56), widths = c(0.25, 0.75))
@@ -326,16 +337,16 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
             maxLab = NULL
         }
         
-        #StanrdardLegend.new(cols,  limits, dat0[[1]], extend_max = extend_max, maxLab = maxLab, 
-       #           units = '%')
+        StandardLegend(cols,  limits, dat0[[1]], extend_max = extend_max, maxLab = maxLab, 
+                  units = '%')
         
         mapply(triangulaise, datP, pval = pvsp, c(F, T), c("RCP2.6", "RCP6.0"),
               MoreArgs = list(dlimits = dlimits))
     dev.off()
    
     if (signify) {
-        fnameP = paste0(fname, "anomIs_", anomolise, "_CXmaps")
-        pdf(paste0("figs/", fnameP, "anomIs_", anomolise, "sign",signify, "_CXmaps.pdf"),
+        fnameP = paste0(fname, "anomIs_", c('', 'Anomolie')[1+anomolise], "_CXmaps")
+        pdf(paste0("figs/", fnameP, "sign",signify, periods[2], periods[3], "_CXmaps.pdf"),
             height = 10, width = 7.2)#, units = 'in',res  = 300)#height = 7, width = 7.2)#, units = 'in',res  = 300)
             #par(mar = rep(0, 4), mfrow = c(3, 1))
             layout(rbind(1, 2, 3, 4, c(5, 4), c(5, 5), 6), heights = c(1, 0.3, 1, 0.58, 0.42, 0.38, 0.62), widths = c(0.25, 0.75))
@@ -401,3 +412,7 @@ Ncols = "#001620"
 
 plotCOntrols("moisture", slimits = c(5, 10, 20, 50, 80, 90, 95),
             sdlimits = c(-20, -10, -5, -2, -1, 1, 2, 5, 10, 20))
+#rm(variable, pos = 1)
+}
+
+lapply(decades, forDecade)
