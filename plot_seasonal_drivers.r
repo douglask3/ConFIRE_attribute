@@ -3,6 +3,7 @@ source("../gitProjectExtras/gitBasedProjects/R/sourceAllLibs.r")
 sourceAllLibs("../rasterextrafuns/rasterPlotFunctions/R/")
 sourceAllLibs("../rasterextrafuns/rasterExtras/")
 library("raster")
+source("libs/plotStandardMap.r")
 
 gswp3_path = "/hpc/data/d00/hadea/isimip3a/InputData/climate/atmosphere/obsclim/GSWP3-W5E5/gswp3-w5e5_obsclimfill_pr_global_daily_"
 
@@ -17,7 +18,7 @@ openGSWP3 <- function(yr) {
     return(dat[[which(test)]])
 }
 
-#gswp3 = layer.apply(gswp3_years, openGSWP3)
+
 nlperfile = 100
 
 sumLayers <- function(i) {
@@ -30,11 +31,13 @@ sumLayers <- function(i) {
 
 }
 
-#gswp3i = layer.apply(seq(1, nlayers(gswp3), by = nlperfile), sumLayers)
-#gswp3j = sum(gswp3i)/nlayers(gswp3)
+if (!exists('gswp3j')) {
+    gswp3 = layer.apply(gswp3_years, openGSWP3)
+    gswp3i = layer.apply(seq(1, nlayers(gswp3), by = nlperfile), sumLayers)
+    gswp3j = sum(gswp3i)/nlayers(gswp3)
 
-#gswp3j = gswp3j*60*60*24
-
+    gswp3j = gswp3j*60*60*24
+}
 
 dir = '../ConFIRE_ISIMIP/INFERNOonOff/Global/'
 
@@ -112,11 +115,11 @@ plotMap <- function(r, txt, cols, limits) {
 plotMap(gswp3j, "GSWP3", cols, limits)
 
 mapply(plotMap, prDat, Models, MoreArgs = list(cols, limits))
-StandardLegend(cols, limits, gswp3j)
+StandardLegend(cols, limits*1000, gswp3j)
 
 mapply(plotMap, lapply(prDat, '-', gswp3j), rep('', length(Models)), 
         MoreArgs = list(dcols, dlimits))
-StandardLegend(dcols, dlimits, gswp3j, extend_min = TRUE, oneSideLabels = FALSE)
+StandardLegend(dcols, dlimits*1000, gswp3j, extend_min = TRUE, oneSideLabels = FALSE)
 
 dev.off()
 
