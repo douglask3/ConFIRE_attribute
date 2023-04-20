@@ -29,7 +29,7 @@ plotStandardMap <- function(r, cols, limits, e = NULL, add_legend = FALSE,
                             limits_error = c(0.2, 0.200000001),
                             title2 = '', title3 = '', xlim = c(-180, 180), ylim = c(-60, 90),
                             ePatternRes = 67, ePatternThick = 0.5,
-                            ...,  speedy = T) {
+                            ...,  projection = "robinson", speedy = T) {
     
 
     if (nlayers(r) == 2) {
@@ -61,12 +61,12 @@ plotStandardMap <- function(r, cols, limits, e = NULL, add_legend = FALSE,
     }
     #plot(xlim, ylim, xlab = '', ylab = '', axes = FALSE, type ='n')
     
-    plot_raster_from_raster(r, e = e,coast.lwd = 1,
+    plot_raster_from_raster(r, e = e,coast.lwd = 1, projection = projection, 
                             cols = cols, limits = limits, add_legend = FALSE,
                             quick = TRUE, ePatternRes = ePatternRes, ePatternThick = ePatternThick,
                             limits_error = limits_error, add = FALSE, ...)
     
-    if (!speedy) for (i in 1:4) addCoastlineAndIce2map()
+    if (!speedy) for (i in 1:4) addCoastlineAndIce2map(projection = projection)
     
     if (add_legend) {
         add_raster_legend2(cols, limits, dat = r,
@@ -77,7 +77,7 @@ plotStandardMap <- function(r, cols, limits, e = NULL, add_legend = FALSE,
 }
 
 addCoastlineAndIce2map <- function() {
-    add_icemask()
+    add_icemask(...)
     
     mask = raster('data/seamask.nc')
     mask = mask>1
@@ -101,9 +101,9 @@ addCoastlineAndIce2map <- function() {
     ployBox(c(122, 128), c(2.5, 5)) 
 }
 
-add_icemask <- function() {
+add_icemask <- function(projection) {
 	icemask = raster('data/icemask.nc')
-	plot_raster_from_raster(icemask, add = TRUE, cols = c('#FFFFFFFF', 'grey'), y_range = c(-60, 90),
+	plot_raster_from_raster(icemask, add = TRUE, cols = c('#FFFFFFFF', 'grey'), y_range = c(-60, 90), projection = projection,
 						    limits = c(-0.5, 0.5), add_legend = FALSE, interior = FALSE, coast.lwd = 0.67)#, coast.lwd = NULL)
 }
 
