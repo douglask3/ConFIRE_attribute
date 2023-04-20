@@ -11,9 +11,9 @@ library(rgdal)
 #SA_ste <- readOGR(dsn = "data/South_America", layer = "South_America")
 #rivers <- readOGR(dsn = "data/majorrivers_0_0", layer = "MajorRivers")
 
-StandardLegend <- function(cols, limits, dat, rightx = 0.95, extend_max = TRUE, oneSideLabels = TRUE, add = FALSE, ...) {
+StandardLegend <- function(cols, limits, dat, rightx = 0.9, extend_max = TRUE, oneSideLabels = TRUE, add = FALSE, ...) {
     if (add)        
-        plot_loc = c(0.41, rightx, 0.1, 0.13)
+        plot_loc = c(0.41, rightx, 0.05, 0.08)
     else 
         plot_loc = c(0.01, rightx, 0.3, 0.56)
     add_raster_legend2(cols, limits, dat = dat, add = add,
@@ -29,7 +29,7 @@ plotStandardMap <- function(r, cols, limits, e = NULL, add_legend = FALSE,
                             limits_error = c(0.2, 0.200000001),
                             title2 = '', title3 = '', xlim = c(-180, 180), ylim = c(-60, 90),
                             ePatternRes = 67, ePatternThick = 0.5,
-                            ...,  add = FALSE, speedy = T) {
+                            ...,  speedy = T) {
     
 
     if (nlayers(r) == 2) {
@@ -64,7 +64,7 @@ plotStandardMap <- function(r, cols, limits, e = NULL, add_legend = FALSE,
     plot_raster_from_raster(r, e = e,coast.lwd = 1,
                             cols = cols, limits = limits, add_legend = FALSE,
                             quick = TRUE, ePatternRes = ePatternRes, ePatternThick = ePatternThick,
-                            limits_error = limits_error, add = add, ...)
+                            limits_error = limits_error, add = FALSE, ...)
     
     if (!speedy) for (i in 1:4) addCoastlineAndIce2map()
     
@@ -73,7 +73,7 @@ plotStandardMap <- function(r, cols, limits, e = NULL, add_legend = FALSE,
                            transpose = FALSE, srt = 0, oneSideLabels= FALSE,
                            plot_loc = c(0.35, 0.99, 0.09, 0.12),  ylabposScling=0.8, ...)
     }
-    grid()
+   # grid()
 }
 
 addCoastlineAndIce2map <- function() {
