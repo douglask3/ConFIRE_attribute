@@ -13,9 +13,11 @@ graphics.off()
 ## params ##
 ############
 dir = '../ConFIRE_ISIMIP/outputs/sampled_posterior_ConFire_ISIMIP_solutions/attempt4-full/'
+dir = '../ConFIRE_ISIMIP/outputs/sampled_posterior_ConFire_ISIMIP_solutions/attempt3-full/'
 models = c("GFDL-ESM2M", "HADGEM2-ES", "MIROC5", "IPSL-CM5A-LR")
 #periods = c("historic", "RCP2.6_2020s", "RCP6.0_2020s")
-decades = c("2010s", "2020s", "2040s", "2090s")
+decades = rev(c("2010s", "2020s", "2040s", "2090s"))
+decades = c('')
 variable = "burnt_area_mean"
 
 limits =  c(0,1, 2, 5, 10, 20, 40)
@@ -32,7 +34,8 @@ obs_file = "../jules_benchmarking/data/GFED4s_burnt_area.nc"
 forDecade <- function(decade) {
 variable <<- "burnt_area_mean"
 
-periods = c("historic", paste0(c("RCP2.6_", "RCP6.0_"), decade))
+if (decade == '') periods = c("historic", "RCP2.6", "RCP6.0")
+else periods = c("historic", paste0(c("RCP2.6_", "RCP6.0_"), decade))
 ##########
 ## Open ##
 ##########
@@ -43,8 +46,9 @@ obsL = (obs)
 OpenPlotMap <- function(model, period, cols, limits, dcols = NULL, dlimits = NULL, dat0 = NULL,
                     anomolise = NULL, pnew = TRUE) {
     file = paste(dir, model, period, "fullPost.nc", sep = '/')
-    file = paste(dir, model, period, "model_summary-10.nc", sep = '/')
-
+    file = paste(dir, model, period, "model_summary.nc", sep = '/')
+    print("yay")
+    print(file)
     if (!file.exists(file)) file = paste(dir, model, period, "model_summary-10.nc", sep = '/')
     dat = brick(file, varname = variable)[[c(16, 50, 84)]]
     
@@ -88,10 +92,11 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
             dat0 = list(obs)
         } else datA = list(NULL)
         
-       
+         
         datP = lapply(periods[2:3], function(p)
                     mapply(OpenPlotMap, models, dat0 = dat0, anomolise = datA,
                     MoreArgs = list(p, cols, limits, dcols, dlimits)))
+        
         StandardLegend( cols,  limits, dat0[[1]])
         StandardLegend(dcols, dlimits, datP[[1]][[1]],
                             extend_min = TRUE, extend_max = TRUE)       
@@ -102,6 +107,9 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
     #############################################
     ## Signicance of difference from historic ##
     ############################################
+     fname = paste(fname, c('absolute', 'anomaly')[1+anomolise], 
+                       c('change','significance')[signify + 1], "_Ymaps", sep = '-')
+        
     if (signify) {        
         signifM <- function(mid) {
             if (controlT) FUN <- function(x) x else FUN = logit
@@ -125,8 +133,7 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
                  
                 temp_file = paste0("outputs/", models[mid], '/')
                 makeDir(temp_file)
-                temp_file = paste(temp_file,  'pvs-', periods[1+pid], 
-                                  sce,c('', 'Anomolie')[1+anomolise],fname,'.nc', sep = '-') 
+                temp_file = paste(temp_file, fname,  c("RCP2.6", "RCP6.0")[pid], '.nc', sep = '-') 
                 print(temp_file) 
                 if (file.exists(temp_file)) return(raster(temp_file))
                 #ft = FUN((datP[[pid]][[mid]][[2]]+dat0[[mid]][[2]]*sc)/sc)
@@ -142,10 +149,10 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
                 #out[mask] = pv
                 #test = datP[[pid]][[mid]][[2]] < 0
                 #out[test] = -out[test] 
-               
+                
                 out = cal_pd_product(xs, h, datP[[pid]][[mid]][[2]],
                                      sc, error, mask, FUN)        
-                #browser()
+                
                 out = writeRaster(out, file = temp_file, overwrite = TRUE)   
                         
             }
@@ -206,8 +213,9 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
                
 #browser() 
         fname0  = fname
-        fname = paste0(fname, "anomIs_", c('', 'Anomolie')[1+anomolise], "signifChange", 
-                       signify, "_Ymaps")
+        
+        #fname = paste(fname, c('absolute', 'anomaly')[1+anomolise], 
+        #               c('change','significance')[signify + 1], "_Ymaps", sep = '-')
         pdf(paste0("figs/", fname, periods[2], periods[3], "pdf"), 
             height = 5, width = 7.2)#, units = 'in',res  = 300)
          
@@ -235,7 +243,9 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
             P = mean(layer.apply(q, function(i) {i[i<0] = 0; i}))
             N = abs(mean(layer.apply(q, function(i) {i[i>0] = 0; i})))
             makeDir("outputs/ensemble/")
-            fout = paste0("outputs/ensemble/", fnameP,'_',lab, '.nc')
+            fout = paste0("outputs/ensemble/", fname, '_', periods[grepl(lab, periods)], '.nc')
+            print("fout")
+            print(fout)
             writeRaster.gitInfo(addLayer(P, N), file = fout, overwrite = TRUE)
             
             PNcols = make_col_vector(dcols, ncols = length( dlimits)+1)
@@ -317,7 +327,9 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
                             r/max.raster(r0[[1]], na.rm = T), rs, dat0))
         dat0 = lapply(dat0, function(r) r/max.raster(r[[1]], na.rm = T))
     }
-    fnameP = paste0(fname, "anomIs_", c('', 'Anomolie')[1+anomolise], periods[2], periods[3], "_CXmaps")
+     
+    fnameP = paste0(fname, periods[2], periods[3], "_CXmaps")
+    
     pdf(paste0("figs/", fnameP, ".pdf"),
         height = 10, width = 7.2)#, units = 'in',res  = 300)
         layout(rbind(1, 2, 3, 4, c(5, 4), c(5, 5), 6), heights = c(1, 0.3, 1, 0.58, 0.42, 0.44, 0.56), widths = c(0.25, 0.75))
@@ -325,6 +337,8 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
         if (length(dat0) > 1)
             dat0 = mean(layer.apply(dat0, function(i) i[[2]]))
         else dat0 = dat0[[1]]
+       
+        
         writeRaster.gitInfo(dat0 * sc, file = paste0('outputs/', fnameP, '-GFED4s', '.nc'),
                             overwrite = TRUE)
         plotStandardMap(dat0 * sc, cols = cols, limits = limits, speedy = FALSE)
@@ -345,7 +359,7 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
     dev.off()
    
     if (signify) {
-        fnameP = paste0(fname, "anomIs_", c('', 'Anomolie')[1+anomolise], "_CXmaps")
+        fnameP = paste0(fname, "_CXmaps")
         pdf(paste0("figs/", fnameP, "sign",signify, periods[2], periods[3], "_CXmaps.pdf"),
             height = 10, width = 7.2)#, units = 'in',res  = 300)#height = 7, width = 7.2)#, units = 'in',res  = 300)
             #par(mar = rep(0, 4), mfrow = c(3, 1))
@@ -363,12 +377,12 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
 Pcols = "#330000"
 Ncols = "#000033"
 
-plotFun("BA", controlT = FALSE)
+plotFun("Burnt_Area", controlT = FALSE)
 
 limits =  c(0, 0.1, 0.5, 1, 5, 10, 50)
 dlimits = c(-10, -5, -1, -0.5, -0.1, -0.05, -0.01, 0.01, 0.05, 0.1, 0.5, 1, 5, 10)
 
-plotFun("BA", TRUE, FALSE)
+plotFun("Burnt_Area", TRUE, FALSE)
 
 plotCOntrols <- function(control, 
                          slimits = c(0, 1, 2, 5, 10, 20, 50, 100, 150)/10,
