@@ -8,6 +8,7 @@ sourceAllLibs("../rasterextrafuns/rasterExtras/R/")
 source("libs/process_jules_file.r")
 source("libs/writeRaster.Standard.r")
 options(error=recover)
+source("../jules_benchmarking/libs/plotting/plotStandardMap.r")
 graphics.off()
 
 dir = '../ConFIRE_ISIMIP/INFERNOonOff/Global/'
@@ -178,7 +179,7 @@ limsT = limsT[limsT <= (maxT-Temp)]
 colsT = c(make_col_vector(colsT[[1]], limits = limsT[limsT <=0]),
           make_col_vector(colsT[[2]], limits = limsT[limsT >=0]))
 plotForTemp <- function(Temp, out, outF) {
-png(paste0("figs/degreeEquil-", Temp, ".png"), height = 6.5, width = 7.2, units = 'in', res = 300)
+png(paste0("figs/degreeEquil-2-", Temp, ".png"), height = 6.5, width = 7.2, units = 'in', res = 300)
 layout(rbind(1:4, 5:8, 9, 10:13, 14:17, 18, 18+matrix(1:20, ncol = 4), 39, 40:43, 44), 
        heights = c(1, 1, 0.3, 1, 1, 0.3, rep(1, 5), 0.3, 1, 0.3))
 #dev.new()
@@ -186,7 +187,7 @@ layout(cbind(1:5,6:10), heights = c(1, 1, 1, 1, 0.3))
 par(mar = rep(0, 4), oma = c(2, 2, 2, 0))
 
 plotImpact <- function(res, name, mttext = "Impact", addModName = TRUE){
-    plotStandardMap(res[[1]], colsI, limsI)
+    plotStandardMap(res[[1]], cols = colsI, limits = limsI)
     if (addModName) mtext(name, side = 3, line = 0)
     if (name == models[1]) mtext(mttext, side = 2)
 }
@@ -202,7 +203,7 @@ plotState <- function(res, name, mttext, id = 2:3, addModName = TRUE, letter = '
               (res[[id[1]]] ==3 & (res[[id[2]]] == 1 | res[[id[2]]] ==4)) |
               (res[[id[1]]] ==4 & (res[[id[2]]] == 2 | res[[id[2]]] ==3))
     r[unknown] = NaN
-    plotStandardMap(r, colsS, seq(1.5, 3.5))
+    plotStandardMap(r, cols = colsS, limits = seq(1.5, 3.5))
     plotStandardMap(unknown, cols = c("transparent", "#888888"), limits = c(0.5), add = TRUE)
     mtext(side = 3, adj = 0.1, letter)       
     
@@ -232,7 +233,7 @@ plotTemp <- function(res, unknown, name, letter = '') {
             gwt[state != i] = NaN
         }
         
-        plotStandardMap(gwt, colsT, limsT)
+        plotStandardMap(gwt, cols = colsT, limits = limsT)
         plotStandardMap(mask, cols = c("transparent", "#000099"), limits = c(0.5), add = TRUE)
         plotStandardMap(unknown, cols = c("transparent", "#888888"), limits = c(0.5),
                         add = TRUE)
@@ -247,9 +248,10 @@ plotTemp <- function(res, unknown, name, letter = '') {
 mapply( plotTemp, out, unknown, models, 
                  letter = letters[(1+length(out)):(2*length(out))])
 
-StandardLegend(colsT, limsT, out[[1]][[1]], extend_min = TRUE, units = '~DEG~C', oneSideLabels = FALSE, rightx = 0.8)
-points(x = 0.9, y = 0.42, pch = 15, col = '#000099', cex = 2)
-text(x = 0.9, y = 0.42, adj = c(0.5, 1.2), 'Beyond\nrun', xpd = NA, cex = 1.15)
+#StandardLegend(colsT, limsT, out[[1]][[1]], extend_min = TRUE, units = '~DEG~C', oneSideLabels = FALSE, rightx = 0.8)
+legendColBar(c(0.42, 0.9), c(0.1, 0.9), colsT, limsT, F, T, T, transpose = T, oneSideLabels=FALSE)
+points(x = 0.95, y = 0.3, pch = 15, col = '#000099', cex = 2, xpd = NA)
+text(x = 0.95, y = 0.3, adj = c(0.5, 1.2), 'Beyond\nrun', xpd = NA, cex = 1.15)
 dev.off()
 }
 
