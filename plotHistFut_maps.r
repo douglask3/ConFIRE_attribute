@@ -246,6 +246,7 @@ plotFun <- function(fname, anomolise = FALSE, signify = TRUE, controlT = TRUE) {
             fout = paste0("outputs/ensemble/", fname, '_', periods[grepl(lab, periods)], '.nc')
             print("fout")
             print(fout)
+            if (grepl('anomaly', fout)) out = addLayer(P, N)/120 else out = addLayer(P, N)
             writeRaster.gitInfo(addLayer(P, N), file = fout, overwrite = TRUE)
             
             PNcols = make_col_vector(dcols, ncols = length( dlimits)+1)
