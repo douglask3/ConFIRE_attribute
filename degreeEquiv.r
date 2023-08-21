@@ -26,8 +26,13 @@ tfile0 = 'temp2/degreeEquiv'
 openDat <- function(period, experiment, model, variable)    
     brick(paste0(dir, period, experiment, '/', model, '/', variable, '.nc'))
 
-
-
+gfed = bound = brick("data/GFEDregions.nc")
+bound[] = 0
+bound[,2:ncol(gfed)] = bound[,2:ncol(gfed)] + (gfed[,2:ncol(gfed)] != gfed[,1:(ncol(gfed)-1)])
+bound[2:nrow(gfed),] = bound[2:nrow(gfed),] + (gfed[2:nrow(gfed),] != gfed[1:(nrow(gfed)-1),])
+bound[,3:ncol(gfed)] = bound[,3:ncol(gfed)] + (gfed[,3:ncol(gfed)] != gfed[,1:(ncol(gfed)-2)])
+bound[3:nrow(gfed),] = bound[3:nrow(gfed),] + (gfed[3:nrow(gfed),] != gfed[1:(nrow(gfed)-2),])
+bound = bound != 0
 aa <- function(i, dat, ..., ncount = 11) {
     print(i)
     tfile = paste0(c(tfile0, ...,  ncount, i, '.nc'), collapse = '-')
@@ -39,7 +44,7 @@ aa <- function(i, dat, ..., ncount = 11) {
 }
 
 openAllP <- function(...) {
-    tfile = paste0(c(tfile0, 'running21all', futuresID,  ..., '.nc'), collapse = '-')
+    tfile = paste0(c(tfile0, 'running21all-vs40', futuresID,  ..., '.nc'), collapse = '-')
     if (file.exists(tfile)) return(brick(tfile))
     hist = openDat(historicID, ...)
     futr = openDat(futuresID, ...)
@@ -47,9 +52,9 @@ openAllP <- function(...) {
     dat = addLayer(hist, futr)
     
     datYr = layer.apply(seq(12, nlayers(dat), by = 12), aa, dat, ...)
-    #browser()
+    
     dat = layer.apply(21:nlayers(datYr), aa, datYr, 'running21', ..., ncount = 20)
-    dat = dat/dat[[1]]
+    dat = dat/mean(dat[[1:2]])
     dat = writeRaster(dat, file = tfile, overwrite = TRUE)
 }
 
@@ -58,7 +63,6 @@ openMod <- function(...)
 
 
 dats = lapply(models, openMod, variable = variable)
-
 
 analyseCell <- function(i, dat, gwt, Temp = 1.5, ID) {
     ts1 = as.vector(dat[[1]][i]); ts2 = as.vector(dat[[2]][i])
@@ -203,8 +207,11 @@ plotState <- function(res, name, mttext, id = 2:3, addModName = TRUE, letter = '
               (res[[id[1]]] ==3 & (res[[id[2]]] == 1 | res[[id[2]]] ==4)) |
               (res[[id[1]]] ==4 & (res[[id[2]]] == 2 | res[[id[2]]] ==3))
     r[unknown] = NaN
+       
     plotStandardMap(r, cols = colsS, limits = seq(1.5, 3.5))
     plotStandardMap(unknown, cols = c("transparent", "#888888"), limits = c(0.5), add = TRUE)
+    plotStandardMap(bound, cols = c("transparent", "black"), limits = c(0.5), add = TRUE)
+    
     mtext(side = 3, adj = 0.1, letter)       
     
     if (name == names(models)[1]) mtext(mttext, side = 3)
@@ -237,6 +244,8 @@ plotTemp <- function(res, unknown, name, letter = '') {
         plotStandardMap(mask, cols = c("transparent", "#000099"), limits = c(0.5), add = TRUE)
         plotStandardMap(unknown, cols = c("transparent", "#888888"), limits = c(0.5),
                         add = TRUE)
+        plotStandardMap(bound, cols = c("transparent", "black"), limits = c(0.5), add = TRUE)
+    
         if (name == models[1]) mtext("Equivalent Temperature", side = 3)
         mtext(side = 3, adj = 0.1, letter)  
         #if (name == models[1]) mtext(c('All', 'reducing', 'recovering', 
