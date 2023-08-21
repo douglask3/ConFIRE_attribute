@@ -44,7 +44,7 @@ aa <- function(i, dat, ..., ncount = 11) {
 }
 
 openAllP <- function(...) {
-    tfile = paste0(c(tfile0, 'running21all-vs40', futuresID,  ..., '.nc'), collapse = '-')
+    tfile = paste0(c(tfile0, 'running21all-vs40-2', futuresID,  ..., '.nc'), collapse = '-')
     if (file.exists(tfile)) return(brick(tfile))
     hist = openDat(historicID, ...)
     futr = openDat(futuresID, ...)
@@ -54,7 +54,8 @@ openAllP <- function(...) {
     datYr = layer.apply(seq(12, nlayers(dat), by = 12), aa, dat, ...)
     
     dat = layer.apply(21:nlayers(datYr), aa, datYr, 'running21', ..., ncount = 20)
-    dat = dat/mean(dat[[1:2]])
+    
+    dat = dat/mean(dat[[c(1, 20)]])
     dat = writeRaster(dat, file = tfile, overwrite = TRUE)
 }
 
