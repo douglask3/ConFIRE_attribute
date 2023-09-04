@@ -10,7 +10,7 @@ options(error=recover)
 abcd <- function() source("make_inputs/ISIMIP_INFERNOonOff.r")
 countriesMap = raster('../ConFIRE_ISIMIP/data/countries.nc')
 ckey = read.csv("../ConFIRE_ISIMIP/data/countries_key.csv")[,2]
-genVarID = "genVar-C-cover_clims-sw-precip-ba-tree-fireEmissions2"
+genVarID = "genVar-C-cover_clims-sw-precip-ba-tree-fireEmissions2-specHumid"
 
 fireOffDir = "/hpc/data/d01/hadcam/jules_output/ALL_u-bk886_isimip_0p5deg_origsoil_dailytrif"
 fireOnDir = "/hpc/data/d05/cburton/jules_output/u-cf137/"
@@ -19,7 +19,7 @@ dirs = list(#historic_on_short  = fireOnDir,
             #historic_off_short = fireOffDir,
             historic_on  = fireOnDir,
             #historic_off = fireOffDir,
-            RCP2.6_on    = fireOnDir,
+            #RCP2.6_on    = fireOnDir,
             RCP6.0_on    = fireOnDir)#,
             #RCP2.6_off   = fireOffDir,
             #RCP6.0_off   = fireOffDir)
@@ -28,7 +28,7 @@ years = list(#historic_on_short = 1985:2005,
              #historic_of_short = 1985:2005,
              historic_on  = 1861:2005,
              #historic_off = 1861:2005,
-             RCP2.6_on    = 2006:2099,
+             #RCP2.6_on    = 2006:2099,
              RCP6.0_on    = 2006:2099)#,
              #RCP2.6_off   = 2006:2099,
              #RCP6.0_off   = 2006:2099)
@@ -46,15 +46,17 @@ countries = c(#Kenya = 'Kenya',
 
 fileIDs = c(temp = "ilamb", sw_down = 'ilamb', npp = "ilamb", smc = "ilamb", 
             cover = "ilamb", cveg = "ilamb", cs_gb = "ilamb", precip = "ilamb", 
-            burnt_area = "ilamb", fire_emissions_veg = "ilamb", 
-            fire_emissions_dpm = "ilamb", fire_emissions_rpm = "ilamb")
+            burnt_area = "ilamb", #fire_emissions_veg = "ilamb", 
+            #fire_emissions_dpm = "ilamb", fire_emissions_rpm = "ilamb", 
+            specific_humid = "ilamb")
 
 varnames =  c(temp = "t1p5m_gb", sw_down = 'sw_down', npp = "npp_gb", smc = "smc_tot", 
               cover = "frac", cveg = "cv", cs_gb = "cs_gb", precip = "precip", 
-              burnt_area = "burnt_area_gb", fire_emissions_veg = "veg_c_fire_emission_gb", 
-              fire_emissions_dpm = "burnt_carbon_dpm", fire_emissions_rpm = "burnt_carbon_rpm")
+              burnt_area = "burnt_area_gb", #fire_emissions_veg = "veg_c_fire_emission_gb", 
+              #fire_emissions_dpm = "burnt_carbon_dpm", fire_emissions_rpm = "burnt_carbon_rpm",
+              specific_humid = "q1p5m_gb")
 
-models = c("IPSL-CM5A-LR", "GFDL-ESM2M", "HADGEM2-ES", "MIROC5")[1]
+models = c("IPSL-CM5A-LR", "GFDL-ESM2M", "HADGEM2-ES", "MIROC5")[4]
 
 temp_dir = '/data/users/dkelley/ConFIRE_ISIMIP_temp/-makeISIMIPonOffins'
 temp_dir_mem = '/data/users/dkelley/ConFIRE_ISIMIP_temp/memSafe/'
@@ -232,11 +234,12 @@ makeDat <- function(id, dir, years_out, out_dir, mask,  extent, country) {
                    sw_down  = var2layerWrite('sw_down' ),
                    precip  = var2layerWrite('precip' ),
                    burnt_area  = var2layerWrite('burnt_area' ),
-                   fire_emissions = var2layerWrite(c("fire_emissions_veg", 
-                                                     "fire_emissions_dpm",
-                                                     "fire_emissions_rpm")),
+                   #fire_emissions = var2layerWrite(c("fire_emissions_veg", 
+                   #                                  "fire_emissions_dpm",
+                   #                                  "fire_emissions_rpm")),
                    npp   = var2layerWrite('npp'  ),
-                   smc   = var2layerWrite('smc'  ))
+                   smc   = var2layerWrite('smc'  ),
+                   specific_humid = var2layerWrite("specific_humid"))
         save(out, file = genVarFile)
         closeAllConnections()
         gc()
